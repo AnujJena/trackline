@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trackline — AI Project Console</title>
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-mark">◇</span>
+    <span class="brand-name">TRACKLINE</span>
+  </div>
+  <nav class="tabs" role="tablist">
+    <button class="tab active" data-view="gantt" role="tab" aria-selected="true">Gantt</button>
+    <button class="tab" data-view="burndown" role="tab" aria-selected="false">Burndown</button>
+    <button class="tab" data-view="kanban" role="tab" aria-selected="false">Kanban</button>
+  </nav>
+  <div class="status-chip" id="apiStatus">
+    <span class="dot" id="apiDot"></span>
+    <span id="apiStatusText">Checking key…</span>
+  </div>
+</header>
+
+<div class="ticker" id="ticker">
+  <span class="ticker-text" id="tickerText">SYSTEM READY · ASK THE ASSISTANT TO PLAN, TRACK, OR CHART YOUR PROJECT</span>
+</div>
+
+<main class="layout">
+
+  <section class="canvas">
+
+    <div class="view active" id="view-gantt">
+      <div class="view-head">
+        <h1>Gantt Timeline</h1>
+        <p class="view-sub">Ask the assistant: <em>"Plan a 6-week app launch as a Gantt chart"</em></p>
+      </div>
+      <div class="gantt-wrap" id="ganttWrap">
+        <div class="empty-state" id="ganttEmpty">
+          <p>No timeline yet.</p>
+          <button class="btn-ghost" data-sample="gantt">Load a sample plan</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="view" id="view-burndown">
+      <div class="view-head">
+        <h1>Sprint Burndown</h1>
+        <p class="view-sub">Ask the assistant: <em>"Show a burndown for a 10-day sprint with 60 points"</em></p>
+      </div>
+      <div class="burndown-wrap">
+        <canvas id="burndownChart" height="320"></canvas>
+        <div class="empty-state" id="burndownEmpty">
+          <p>No sprint data yet.</p>
+          <button class="btn-ghost" data-sample="burndown">Load a sample sprint</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="view" id="view-kanban">
+      <div class="view-head">
+        <h1>Kanban Board</h1>
+        <p class="view-sub">Ask the assistant: <em>"Set up a kanban board for onboarding a new client"</em>. Drag cards between columns.</p>
+      </div>
+      <div class="kanban-wrap" id="kanbanWrap">
+        <div class="empty-state" id="kanbanEmpty">
+          <p>No board yet.</p>
+          <button class="btn-ghost" data-sample="kanban">Load a sample board</button>
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+  <aside class="copilot">
+    <div class="copilot-head">
+      <span class="copilot-title">PM Assistant</span>
+      <span class="copilot-hint">Answers PM questions · drafts charts on request</span>
+    </div>
+    <div class="chat-log" id="chatLog">
+      <div class="msg msg-assistant">
+        Hi — I'm your project management assistant. Ask me anything about scheduling, risk, agile ceremonies, or estimation, or ask me to draft a Gantt chart, a burndown, or a kanban board for a project you describe.
+      </div>
+    </div>
+    <form class="chat-input-row" id="chatForm">
+      <textarea id="chatInput" placeholder="Ask a PM question, or describe a project to chart…" rows="2"></textarea>
+      <button type="submit" id="chatSend">Send</button>
+    </form>
+  </aside>
+
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
