@@ -87,6 +87,44 @@ button, textarea, input { font-family: inherit; }
 .dot.ok { background: var(--success); box-shadow: 0 0 6px var(--success); }
 .dot.bad { background: var(--danger); box-shadow: 0 0 6px var(--danger); }
 
+/* ---------- Project bar ---------- */
+.project-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 22px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-panel);
+}
+.project-label {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text-faint);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+#projectSelect {
+  background: var(--bg-panel-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  padding: 5px 8px;
+  border-radius: var(--radius);
+  max-width: 220px;
+}
+.btn-tiny {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  font-size: 11.5px;
+  padding: 5px 10px;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+.btn-tiny:hover { color: var(--text); border-color: var(--accent-2); }
+.btn-tiny-danger:hover { color: var(--danger); border-color: var(--danger); }
+
 /* ---------- Ticker ---------- */
 .ticker {
   border-bottom: 1px solid var(--border);
@@ -113,7 +151,13 @@ button, textarea, input { font-family: inherit; }
 .view { display: none; }
 .view.active { display: block; }
 
-.view-head { margin-bottom: 22px; }
+.view-head {
+  margin-bottom: 22px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
 .view-head h1 {
   font-family: var(--font-display);
   font-size: 22px;
@@ -121,6 +165,8 @@ button, textarea, input { font-family: inherit; }
 }
 .view-sub { color: var(--text-dim); font-size: 13px; margin: 0; }
 .view-sub em { color: var(--accent-2); font-style: normal; }
+.view-actions { display: flex; gap: 8px; flex-shrink: 0; }
+.view-actions .btn-ghost { font-size: 11px; padding: 6px 12px; white-space: nowrap; }
 
 .empty-state {
   border: 1px dashed var(--border);
@@ -227,6 +273,52 @@ button, textarea, input { font-family: inherit; }
 .kanban-card.dragging { opacity: 0.4; }
 .kanban-col.drag-over { border-color: var(--accent-2); background: var(--accent-2-dim); }
 
+/* ---------- RAID log ---------- */
+.raid-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  font-size: 13px;
+}
+.raid-table th {
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.raid-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--grid-line);
+  vertical-align: top;
+}
+.raid-table tr:last-child td { border-bottom: none; }
+.raid-badge {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  padding: 2px 8px;
+  border-radius: 100px;
+  border: 1px solid currentColor;
+}
+.raid-badge.type-risk { color: var(--danger); }
+.raid-badge.type-assumption { color: var(--accent-2); }
+.raid-badge.type-issue { color: var(--accent); }
+.raid-badge.type-dependency { color: #B392F0; }
+.raid-badge.impact-high { color: var(--danger); }
+.raid-badge.impact-medium { color: var(--accent); }
+.raid-badge.impact-low { color: var(--text-dim); }
+.raid-badge.status-open { color: var(--danger); }
+.raid-badge.status-monitoring { color: var(--accent); }
+.raid-badge.status-mitigated,
+.raid-badge.status-closed { color: var(--success); }
+
 /* ---------- Copilot ---------- */
 .copilot {
   border-left: 1px solid var(--border);
@@ -295,6 +387,13 @@ button, textarea, input { font-family: inherit; }
 
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }
+}
+
+@media print {
+  body { background: white; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .topbar, .project-bar, .ticker, .copilot, .view-actions, .empty-state button { display: none !important; }
+  .layout { grid-template-columns: 1fr; height: auto; display: block; }
+  .canvas { padding: 0; overflow: visible; }
 }
 
 :focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }

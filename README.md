@@ -5,8 +5,16 @@ A small web app that combines:
 - **Gantt chart** — task timelines
 - **Burndown chart** — sprint progress
 - **Kanban board** — drag-and-drop task columns
+- **RAID log** — Risks, Assumptions, Issues, Dependencies as a table
 
-The assistant can draft or update any of the three charts directly from a chat request (e.g. *"Plan a 6-week app launch as a Gantt chart"*).
+The assistant can draft **or edit** any of the four views directly from a chat request — e.g. *"Plan a 6-week app launch as a Gantt chart"*, then later *"push task 3 back a week"* or *"add a risk about budget overrun"*. It's shown the chart's current state each time, so edits build on what's already there instead of starting over.
+
+**Other features:**
+- **Multiple projects** — switch, rename, or delete projects from the dropdown under the top nav. Each project keeps its own charts and chat history.
+- **Export** — every view has "Export PNG" (image download) and "Export PDF" (opens your browser's print dialog — choose "Save as PDF").
+- Chat history sent to the API is trimmed to the last ~5 exchanges to control token cost on long conversations; the full conversation still stays visible in the chat panel and is saved per project.
+
+**Note on storage:** projects are saved in your browser's local storage, not a database — they're private to that browser/device and won't follow you to a different computer or browser. Clearing your browser's site data will erase them.
 
 Everything runs as static files plus one serverless function (`/api/chat.js`), so it fits Vercel's free Hobby tier with no database and no build step.
 

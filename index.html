@@ -20,12 +20,21 @@
     <button class="tab active" data-view="gantt" role="tab" aria-selected="true">Gantt</button>
     <button class="tab" data-view="burndown" role="tab" aria-selected="false">Burndown</button>
     <button class="tab" data-view="kanban" role="tab" aria-selected="false">Kanban</button>
+    <button class="tab" data-view="raid" role="tab" aria-selected="false">RAID Log</button>
   </nav>
   <div class="status-chip" id="apiStatus">
     <span class="dot" id="apiDot"></span>
     <span id="apiStatusText">Checking key…</span>
   </div>
 </header>
+
+<div class="project-bar">
+  <label class="project-label" for="projectSelect">Project</label>
+  <select id="projectSelect"></select>
+  <button class="btn-tiny" id="btnNewProject" title="New project">＋ New</button>
+  <button class="btn-tiny" id="btnRenameProject" title="Rename project">Rename</button>
+  <button class="btn-tiny btn-tiny-danger" id="btnDeleteProject" title="Delete project">Delete</button>
+</div>
 
 <div class="ticker" id="ticker">
   <span class="ticker-text" id="tickerText">SYSTEM READY · ASK THE ASSISTANT TO PLAN, TRACK, OR CHART YOUR PROJECT</span>
@@ -37,8 +46,14 @@
 
     <div class="view active" id="view-gantt">
       <div class="view-head">
-        <h1>Gantt Timeline</h1>
-        <p class="view-sub">Ask the assistant: <em>"Plan a 6-week app launch as a Gantt chart"</em></p>
+        <div>
+          <h1>Gantt Timeline</h1>
+          <p class="view-sub">Ask the assistant: <em>"Plan a 6-week app launch as a Gantt chart"</em>, or <em>"push task 3 back a week"</em> to edit.</p>
+        </div>
+        <div class="view-actions">
+          <button class="btn-ghost" data-export-png="ganttWrap" data-export-name="gantt-chart">Export PNG</button>
+          <button class="btn-ghost" data-export-print>Export PDF</button>
+        </div>
       </div>
       <div class="gantt-wrap" id="ganttWrap">
         <div class="empty-state" id="ganttEmpty">
@@ -50,8 +65,14 @@
 
     <div class="view" id="view-burndown">
       <div class="view-head">
-        <h1>Sprint Burndown</h1>
-        <p class="view-sub">Ask the assistant: <em>"Show a burndown for a 10-day sprint with 60 points"</em></p>
+        <div>
+          <h1>Sprint Burndown</h1>
+          <p class="view-sub">Ask the assistant: <em>"Show a burndown for a 10-day sprint with 60 points"</em></p>
+        </div>
+        <div class="view-actions">
+          <button class="btn-ghost" data-export-png-canvas="burndownChart" data-export-name="burndown-chart">Export PNG</button>
+          <button class="btn-ghost" data-export-print>Export PDF</button>
+        </div>
       </div>
       <div class="burndown-wrap">
         <canvas id="burndownChart" height="320"></canvas>
@@ -64,8 +85,14 @@
 
     <div class="view" id="view-kanban">
       <div class="view-head">
-        <h1>Kanban Board</h1>
-        <p class="view-sub">Ask the assistant: <em>"Set up a kanban board for onboarding a new client"</em>. Drag cards between columns.</p>
+        <div>
+          <h1>Kanban Board</h1>
+          <p class="view-sub">Ask the assistant, or drag cards between columns. Try: <em>"move the client onboarding card to Done"</em></p>
+        </div>
+        <div class="view-actions">
+          <button class="btn-ghost" data-export-png="kanbanWrap" data-export-name="kanban-board">Export PNG</button>
+          <button class="btn-ghost" data-export-print>Export PDF</button>
+        </div>
       </div>
       <div class="kanban-wrap" id="kanbanWrap">
         <div class="empty-state" id="kanbanEmpty">
@@ -75,20 +102,35 @@
       </div>
     </div>
 
+    <div class="view" id="view-raid">
+      <div class="view-head">
+        <div>
+          <h1>RAID Log</h1>
+          <p class="view-sub">Ask the assistant: <em>"Build a RAID log for a vendor migration project"</em>, or <em>"add a risk about budget overrun"</em></p>
+        </div>
+        <div class="view-actions">
+          <button class="btn-ghost" data-export-png="raidWrap" data-export-name="raid-log">Export PNG</button>
+          <button class="btn-ghost" data-export-print>Export PDF</button>
+        </div>
+      </div>
+      <div class="raid-wrap" id="raidWrap">
+        <div class="empty-state" id="raidEmpty">
+          <p>No RAID log yet.</p>
+          <button class="btn-ghost" data-sample="raid">Load a sample log</button>
+        </div>
+      </div>
+    </div>
+
   </section>
 
   <aside class="copilot">
     <div class="copilot-head">
       <span class="copilot-title">PM Assistant</span>
-      <span class="copilot-hint">Answers PM questions · drafts charts on request</span>
+      <span class="copilot-hint">Answers PM questions · drafts and edits charts on request</span>
     </div>
-    <div class="chat-log" id="chatLog">
-      <div class="msg msg-assistant">
-        Hi — I'm your project management assistant. Ask me anything about scheduling, risk, agile ceremonies, or estimation, or ask me to draft a Gantt chart, a burndown, or a kanban board for a project you describe.
-      </div>
-    </div>
+    <div class="chat-log" id="chatLog"></div>
     <form class="chat-input-row" id="chatForm">
-      <textarea id="chatInput" placeholder="Ask a PM question, or describe a project to chart…" rows="2"></textarea>
+      <textarea id="chatInput" placeholder="Ask a PM question, or describe/edit a chart…" rows="2"></textarea>
       <button type="submit" id="chatSend">Send</button>
     </form>
   </aside>
@@ -96,6 +138,7 @@
 </main>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

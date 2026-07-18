@@ -1,11 +1,19 @@
+// ===== Constants =====
+const STORAGE_KEY = "trackline_projects_v1";
+const ACTIVE_KEY = "trackline_active_project_v1";
+const MAX_API_HISTORY = 10; // trim to last N messages (~5 turns) sent to the API to control cost
+
 // ===== State =====
 let state = {
-  gantt: null,      // [{id,name,start,end,progress}]
-  burndown: null,   // {days:[{day,ideal,actual}]}
-  kanban: null,      // {columns:[{name,cards:[{id,title}]}]}
+  gantt: null,     // [{id,name,start,end,progress}]
+  burndown: null,  // {days:[{day,ideal,actual}]}
+  kanban: null,    // {columns:[{name,cards:[{id,title}]}]}
+  raid: null,      // {items:[{id,type,description,owner,impact,status}]}
 };
+let history = [];      // full API-role history: [{role, content}]
+let chatLogData = [];  // display log: [{kind:'user'|'assistant'|'note', text}]
 let burndownChartInstance = null;
-let history = []; // {role, content} for API context
+let activeProjectId = null;
 
 // ===== Sample data =====
 const SAMPLES = {
@@ -31,7 +39,116 @@ const SAMPLES = {
       { name: "Done", cards: [{ id: "c4", title: "Send welcome email" }, { id: "c5", title: "Kickoff call scheduled" }] },
     ],
   },
+  raid: {
+    items: [
+      { id: "r1", type: "Risk", description: "Vendor migration could slip past go-live date", owner: "PM", impact: "High", status: "Open" },
+      { id: "r2", type: "Assumption", description: "Current vendor will provide a full data export", owner: "Vendor lead", impact: "Medium", status: "Monitoring" },
+      { id: "r3", type: "Issue", description: "Legacy API docs are outdated", owner: "Tech lead", impact: "Medium", status: "Open" },
+      { id: "r4", type: "Dependency", description: "Security review must complete before launch", owner: "Security team", impact: "High", status: "Open" },
+    ],
+  },
 };
+
+// ===== Projects (localStorage) =====
+function loadAllProjects() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}"); } catch { return {}; }
+}
+function saveAllProjects(projects) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(projects)); } catch (e) { console.error("Storage save failed", e); }
+}
+function newProjectState(name) {
+  return { name, charts: { gantt: null, burndown: null, kanban: null, raid: null }, apiHistory: [], chatLog: [], updatedAt: Date.now() };
+}
+function initProjects() {
+  let projects = loadAllProjects();
+  let active = localStorage.getItem(ACTIVE_KEY);
+  if (!active || !projects[active]) {
+    const id = "p_" + Date.now();
+    projects[id] = newProjectState("My Project");
+    saveAllProjects(projects);
+    localStorage.setItem(ACTIVE_KEY, id);
+    active = id;
+  }
+  activeProjectId = active;
+  loadProjectIntoApp(projects[active]);
+  renderProjectSelector();
+}
+function loadProjectIntoApp(project) {
+  state.gantt = project.charts.gantt;
+  state.burndown = project.charts.burndown;
+  state.kanban = project.charts.kanban;
+  state.raid = project.charts.raid;
+  history = project.apiHistory ? [...project.apiHistory] : [];
+  chatLogData = project.chatLog ? [...project.chatLog] : [];
+
+  renderGantt(state.gantt);
+  renderBurndown(state.burndown);
+  renderKanban(state.kanban);
+  renderRaid(state.raid);
+  rebuildChatLogDom();
+}
+function persistActiveProject() {
+  const projects = loadAllProjects();
+  if (!activeProjectId || !projects[activeProjectId]) return;
+  projects[activeProjectId].charts = { gantt: state.gantt, burndown: state.burndown, kanban: state.kanban, raid: state.raid };
+  projects[activeProjectId].apiHistory = history;
+  projects[activeProjectId].chatLog = chatLogData;
+  projects[activeProjectId].updatedAt = Date.now();
+  saveAllProjects(projects);
+}
+function renderProjectSelector() {
+  const projects = loadAllProjects();
+  const select = document.getElementById("projectSelect");
+  select.innerHTML = Object.entries(projects)
+    .sort((a, b) => (b[1].updatedAt || 0) - (a[1].updatedAt || 0))
+    .map(([id, p]) => `<option value="${id}" ${id === activeProjectId ? "selected" : ""}>${escapeHtml(p.name)}</option>`)
+    .join("");
+}
+
+document.getElementById("projectSelect").addEventListener("change", (e) => {
+  persistActiveProject();
+  activeProjectId = e.target.value;
+  localStorage.setItem(ACTIVE_KEY, activeProjectId);
+  const projects = loadAllProjects();
+  loadProjectIntoApp(projects[activeProjectId]);
+  setTicker("SYSTEM READY · SWITCHED PROJECT");
+});
+document.getElementById("btnNewProject").addEventListener("click", () => {
+  const name = prompt("New project name:", "Untitled project");
+  if (!name) return;
+  persistActiveProject();
+  const projects = loadAllProjects();
+  const id = "p_" + Date.now();
+  projects[id] = newProjectState(name);
+  saveAllProjects(projects);
+  activeProjectId = id;
+  localStorage.setItem(ACTIVE_KEY, id);
+  loadProjectIntoApp(projects[id]);
+  renderProjectSelector();
+});
+document.getElementById("btnRenameProject").addEventListener("click", () => {
+  const projects = loadAllProjects();
+  const current = projects[activeProjectId];
+  if (!current) return;
+  const name = prompt("Rename project:", current.name);
+  if (!name) return;
+  current.name = name;
+  saveAllProjects(projects);
+  renderProjectSelector();
+});
+document.getElementById("btnDeleteProject").addEventListener("click", () => {
+  const projects = loadAllProjects();
+  const ids = Object.keys(projects);
+  if (ids.length <= 1) { alert("You need at least one project — create a new one before deleting this."); return; }
+  if (!confirm(`Delete "${projects[activeProjectId].name}"? This can't be undone.`)) return;
+  delete projects[activeProjectId];
+  saveAllProjects(projects);
+  const nextId = Object.keys(projects)[0];
+  activeProjectId = nextId;
+  localStorage.setItem(ACTIVE_KEY, nextId);
+  loadProjectIntoApp(projects[nextId]);
+  renderProjectSelector();
+});
 
 // ===== Tabs =====
 document.querySelectorAll(".tab").forEach((tab) => {
@@ -50,10 +167,50 @@ function switchView(name) {
 document.querySelectorAll("[data-sample]").forEach((btn) => {
   btn.addEventListener("click", () => {
     const kind = btn.dataset.sample;
-    if (kind === "gantt") renderGantt(SAMPLES.gantt);
-    if (kind === "burndown") renderBurndown(SAMPLES.burndown);
-    if (kind === "kanban") renderKanban(SAMPLES.kanban);
+    if (kind === "gantt") state.gantt = SAMPLES.gantt, renderGantt(state.gantt);
+    if (kind === "burndown") state.burndown = SAMPLES.burndown, renderBurndown(state.burndown);
+    if (kind === "kanban") state.kanban = SAMPLES.kanban, renderKanban(state.kanban);
+    if (kind === "raid") state.raid = SAMPLES.raid, renderRaid(state.raid);
+    persistActiveProject();
   });
+});
+
+// ===== Export: PNG via html2canvas =====
+document.querySelectorAll("[data-export-png]").forEach((btn) => {
+  btn.addEventListener("click", async () => {
+    const el = document.getElementById(btn.dataset.exportPng);
+    if (!el) return;
+    btn.disabled = true;
+    const original = btn.textContent;
+    btn.textContent = "Exporting…";
+    try {
+      const canvas = await html2canvas(el, { backgroundColor: "#16212C", scale: 2 });
+      downloadCanvas(canvas, btn.dataset.exportName || "chart");
+    } catch (e) {
+      alert("Export failed — try the Export PDF option instead.");
+    } finally {
+      btn.disabled = false;
+      btn.textContent = original;
+    }
+  });
+});
+// ===== Export: PNG directly from a <canvas> (burndown) =====
+document.querySelectorAll("[data-export-png-canvas]").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const canvas = document.getElementById(btn.dataset.exportPngCanvas);
+    if (!canvas) return;
+    downloadCanvas(canvas, btn.dataset.exportName || "chart");
+  });
+});
+function downloadCanvas(canvas, name) {
+  const link = document.createElement("a");
+  link.download = `${name}.png`;
+  link.href = canvas.toDataURL("image/png");
+  link.click();
+}
+// ===== Export: PDF via browser print =====
+document.querySelectorAll("[data-export-print]").forEach((btn) => {
+  btn.addEventListener("click", () => window.print());
 });
 
 // ===== Gantt rendering =====
@@ -62,6 +219,7 @@ function renderGantt(tasks) {
   const wrap = document.getElementById("ganttWrap");
   if (!tasks || !tasks.length) {
     wrap.innerHTML = `<div class="empty-state" id="ganttEmpty"><p>No timeline yet.</p><button class="btn-ghost" data-sample="gantt">Load a sample plan</button></div>`;
+    rebindSampleButton(wrap);
     return;
   }
   const dates = tasks.flatMap((t) => [new Date(t.start), new Date(t.end)]);
@@ -145,6 +303,7 @@ function renderKanban(data) {
   const wrap = document.getElementById("kanbanWrap");
   if (!data || !data.columns || !data.columns.length) {
     wrap.innerHTML = `<div class="empty-state" id="kanbanEmpty"><p>No board yet.</p><button class="btn-ghost" data-sample="kanban">Load a sample board</button></div>`;
+    rebindSampleButton(wrap);
     return;
   }
   wrap.innerHTML = data.columns
@@ -194,6 +353,49 @@ function moveCard(cardId, targetColIdx) {
   });
   if (moved) state.kanban.columns[targetColIdx].cards.push(moved);
   renderKanban(state.kanban);
+  persistActiveProject();
+}
+
+// ===== RAID rendering =====
+function renderRaid(data) {
+  state.raid = data;
+  const wrap = document.getElementById("raidWrap");
+  if (!data || !data.items || !data.items.length) {
+    wrap.innerHTML = `<div class="empty-state" id="raidEmpty"><p>No RAID log yet.</p><button class="btn-ghost" data-sample="raid">Load a sample log</button></div>`;
+    rebindSampleButton(wrap);
+    return;
+  }
+  const rows = data.items
+    .map(
+      (item) => `
+      <tr>
+        <td><span class="raid-badge type-${slug(item.type)}">${escapeHtml(item.type)}</span></td>
+        <td>${escapeHtml(item.description)}</td>
+        <td>${escapeHtml(item.owner || "—")}</td>
+        <td><span class="raid-badge impact-${slug(item.impact)}">${escapeHtml(item.impact || "—")}</span></td>
+        <td><span class="raid-badge status-${slug(item.status)}">${escapeHtml(item.status || "—")}</span></td>
+      </tr>`
+    )
+    .join("");
+  wrap.innerHTML = `
+    <table class="raid-table">
+      <thead><tr><th>Type</th><th>Description</th><th>Owner</th><th>Impact</th><th>Status</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+function slug(s) { return String(s || "").toLowerCase().replace(/\s+/g, "-"); }
+
+function rebindSampleButton(container) {
+  container.querySelectorAll("[data-sample]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const kind = btn.dataset.sample;
+      if (kind === "gantt") renderGantt(SAMPLES.gantt);
+      if (kind === "burndown") renderBurndown(SAMPLES.burndown);
+      if (kind === "kanban") renderKanban(SAMPLES.kanban);
+      if (kind === "raid") renderRaid(SAMPLES.raid);
+      persistActiveProject();
+    });
+  });
 }
 
 function escapeHtml(str) {
@@ -224,10 +426,11 @@ chatForm.addEventListener("submit", async (e) => {
   setTicker("ASSISTANT THINKING…", true);
 
   try {
+    const trimmedHistory = history.slice(-MAX_API_HISTORY);
     const res = await fetch("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages: history }),
+      body: JSON.stringify({ messages: trimmedHistory, charts: state }),
     });
     const data = await res.json();
 
@@ -240,6 +443,7 @@ chatForm.addEventListener("submit", async (e) => {
     const reply = data.reply || "";
     history.push({ role: "assistant", content: reply });
     handleAssistantReply(reply);
+    persistActiveProject();
   } catch (err) {
     addMessage("assistant", "Error: couldn't reach the server. Check your connection and try again.");
     setTicker("SYSTEM ERROR · REQUEST FAILED");
@@ -249,19 +453,30 @@ chatForm.addEventListener("submit", async (e) => {
 });
 
 function addMessage(role, text) {
+  chatLogData.push({ kind: role, text });
+  renderChatBubble(role, text);
+}
+function addNote(text) {
+  chatLogData.push({ kind: "note", text });
+  renderChatBubble("note", text);
+}
+function renderChatBubble(kind, text) {
   const div = document.createElement("div");
-  div.className = `msg msg-${role}`;
+  div.className = kind === "note" ? "msg-note" : `msg msg-${kind}`;
   div.textContent = text;
   chatLog.appendChild(div);
   chatLog.scrollTop = chatLog.scrollHeight;
 }
-
-function addNote(text) {
-  const div = document.createElement("div");
-  div.className = "msg-note";
-  div.textContent = text;
-  chatLog.appendChild(div);
-  chatLog.scrollTop = chatLog.scrollHeight;
+function rebuildChatLogDom() {
+  chatLog.innerHTML = "";
+  if (!chatLogData.length) {
+    renderChatBubble(
+      "assistant",
+      "Hi — I'm your project management assistant. Ask me anything about scheduling, risk, agile ceremonies, or estimation, or ask me to draft or edit a Gantt chart, burndown, kanban board, or RAID log."
+    );
+    return;
+  }
+  chatLogData.forEach((m) => renderChatBubble(m.kind, m.text));
 }
 
 // Parses a fenced ```json ... ``` block out of the reply, if present.
@@ -298,6 +513,12 @@ function handleAssistantReply(reply) {
       const total = action.data.columns.reduce((n, c) => n + c.cards.length, 0);
       addNote(`✓ Kanban board updated (${total} cards)`);
       setTicker(`DRAFTED KANBAN · ${total} CARDS`, true);
+    } else if (action.action === "raid" && action.data) {
+      renderRaid(action.data);
+      switchView("raid");
+      const total = (action.data.items || []).length;
+      addNote(`✓ RAID log updated (${total} items)`);
+      setTicker(`DRAFTED RAID LOG · ${total} ITEMS`, true);
     }
   } else {
     setTicker("SYSTEM READY · ASK THE ASSISTANT TO PLAN, TRACK, OR CHART YOUR PROJECT");
@@ -331,3 +552,6 @@ chatInput.addEventListener("keydown", (e) => {
     text.textContent = "Server unreachable";
   }
 })();
+
+// ===== Boot =====
+initProjects();
