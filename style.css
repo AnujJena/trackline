@@ -1,399 +1,71 @@
-:root {
-  --bg: #0F1720;
-  --bg-panel: #16212C;
-  --bg-panel-2: #1B2733;
-  --grid-line: rgba(255,255,255,0.045);
-  --border: rgba(255,255,255,0.08);
-  --accent: #F5A623;
-  --accent-dim: rgba(245,166,35,0.16);
-  --accent-2: #4FD1C5;
-  --accent-2-dim: rgba(79,209,197,0.16);
-  --success: #4FD17A;
-  --danger: #E5636A;
-  --text: #E7ECF0;
-  --text-dim: #8CA0B3;
-  --text-faint: #576A7B;
-  --font-display: 'Space Grotesk', sans-serif;
-  --font-body: 'Inter', sans-serif;
-  --font-mono: 'IBM Plex Mono', monospace;
-  --radius: 6px;
-}
+# Trackline — AI Project Console
 
-* { box-sizing: border-box; }
+A small web app that combines:
+- **PM Assistant chat** — answers project management questions using Claude
+- **Gantt chart** — task timelines
+- **Burndown chart** — sprint progress
+- **Kanban board** — drag-and-drop task columns
+- **RAID log** — Risks, Assumptions, Issues, Dependencies as a table
 
-html, body {
-  margin: 0;
-  height: 100%;
-  background: var(--bg);
-  color: var(--text);
-  font-family: var(--font-body);
-  background-image:
-    linear-gradient(var(--grid-line) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
-  background-size: 28px 28px;
-}
+The assistant can draft **or edit** any of the four views directly from a chat request — e.g. *"Plan a 6-week app launch as a Gantt chart"*, then later *"push task 3 back a week"* or *"add a risk about budget overrun"*. It's shown the chart's current state each time, so edits build on what's already there instead of starting over.
 
-button, textarea, input { font-family: inherit; }
+**Other features:**
+- **Multiple projects** — switch, rename, or delete projects from the dropdown under the top nav. Each project keeps its own charts and chat history.
+- **Export** — every view has "Export PNG" (image download) and "Export PDF" (opens your browser's print dialog — choose "Save as PDF").
+- Chat history sent to the API is trimmed to the last ~5 exchanges to control token cost on long conversations; the full conversation still stays visible in the chat panel and is saved per project.
 
-/* ---------- Topbar ---------- */
-.topbar {
-  display: flex;
-  align-items: center;
-  gap: 28px;
-  padding: 14px 22px;
-  border-bottom: 1px solid var(--border);
-  background: rgba(15,23,32,0.85);
-  backdrop-filter: blur(6px);
-}
+**Note on storage:** projects are saved in your browser's local storage, not a database — they're private to that browser/device and won't follow you to a different computer or browser. Clearing your browser's site data will erase them.
 
-.brand { display: flex; align-items: center; gap: 8px; }
-.brand-mark { color: var(--accent); font-size: 18px; }
-.brand-name {
-  font-family: var(--font-display);
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  font-size: 15px;
-}
+Everything runs as static files plus one serverless function (`/api/chat.js`), so it fits Vercel's free Hobby tier with no database and no build step.
 
-.tabs { display: flex; gap: 4px; flex: 1; }
-.tab {
-  background: transparent;
-  border: 1px solid transparent;
-  color: var(--text-dim);
-  font-family: var(--font-display);
-  font-weight: 600;
-  font-size: 13px;
-  letter-spacing: 0.03em;
-  padding: 7px 14px;
-  border-radius: var(--radius);
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-.tab:hover { color: var(--text); border-color: var(--border); }
-.tab.active { color: var(--bg); background: var(--accent); }
+---
 
-.status-chip {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--text-dim);
-  border: 1px solid var(--border);
-  padding: 5px 10px;
-  border-radius: 100px;
-}
-.dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text-faint); }
-.dot.ok { background: var(--success); box-shadow: 0 0 6px var(--success); }
-.dot.bad { background: var(--danger); box-shadow: 0 0 6px var(--danger); }
+## 1. Get an Anthropic API key
 
-/* ---------- Project bar ---------- */
-.project-bar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 22px;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg-panel);
-}
-.project-label {
-  font-family: var(--font-mono);
-  font-size: 10.5px;
-  color: var(--text-faint);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-#projectSelect {
-  background: var(--bg-panel-2);
-  border: 1px solid var(--border);
-  color: var(--text);
-  font-family: var(--font-body);
-  font-size: 12.5px;
-  padding: 5px 8px;
-  border-radius: var(--radius);
-  max-width: 220px;
-}
-.btn-tiny {
-  background: transparent;
-  border: 1px solid var(--border);
-  color: var(--text-dim);
-  font-size: 11.5px;
-  padding: 5px 10px;
-  border-radius: var(--radius);
-  cursor: pointer;
-}
-.btn-tiny:hover { color: var(--text); border-color: var(--accent-2); }
-.btn-tiny-danger:hover { color: var(--danger); border-color: var(--danger); }
+1. Go to [console.anthropic.com](https://console.anthropic.com) and create an account if you don't have one.
+2. Add a small amount of billing credit (this is the "small ongoing cost" — usage-based, typically a few cents per conversation with everyday use).
+3. Create an API key under **API Keys** and copy it. You will paste this into Vercel in step 3 below — never into the code itself.
 
-/* ---------- Ticker ---------- */
-.ticker {
-  border-bottom: 1px solid var(--border);
-  padding: 6px 22px;
-  background: var(--bg-panel);
-}
-.ticker-text {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 0.06em;
-  color: var(--text-faint);
-}
-.ticker-text.live { color: var(--accent); }
+## 2. Put the project on GitHub
 
-/* ---------- Layout ---------- */
-.layout {
-  display: grid;
-  grid-template-columns: 1fr 340px;
-  height: calc(100vh - 78px);
-}
+1. Create a new empty repository on [github.com](https://github.com/new) (e.g. `trackline`).
+2. From this project folder, run:
+   ```bash
+   git init
+   git add .
+   git commit -m "Initial commit"
+   git branch -M main
+   git remote add origin https://github.com/<your-username>/trackline.git
+   git push -u origin main
+   ```
 
-.canvas { padding: 28px 32px; overflow-y: auto; }
+## 3. Deploy on Vercel (free)
 
-.view { display: none; }
-.view.active { display: block; }
+1. Go to [vercel.com](https://vercel.com) and sign up (the free Hobby plan is enough).
+2. Click **Add New → Project**, then import the GitHub repo you just pushed.
+3. Framework preset: choose **Other** (no build step needed).
+4. Before deploying, open **Environment Variables** and add:
+   - `ANTHROPIC_API_KEY` = *(the key you copied in step 1)*
+   - Optional: `ANTHROPIC_MODEL` = `claude-sonnet-5` (default) or `claude-haiku-4-5-20251001` for a cheaper/faster model
+5. Click **Deploy**.
 
-.view-head {
-  margin-bottom: 22px;
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 16px;
-}
-.view-head h1 {
-  font-family: var(--font-display);
-  font-size: 22px;
-  margin: 0 0 4px;
-}
-.view-sub { color: var(--text-dim); font-size: 13px; margin: 0; }
-.view-sub em { color: var(--accent-2); font-style: normal; }
-.view-actions { display: flex; gap: 8px; flex-shrink: 0; }
-.view-actions .btn-ghost { font-size: 11px; padding: 6px 12px; white-space: nowrap; }
+Vercel will give you a free URL like `https://trackline-yourname.vercel.app` — that's your independent site. Every future `git push` to `main` redeploys it automatically.
 
-.empty-state {
-  border: 1px dashed var(--border);
-  border-radius: 10px;
-  padding: 48px 20px;
-  text-align: center;
-  color: var(--text-dim);
-}
-.empty-state p { margin: 0 0 12px; }
-.btn-ghost {
-  background: transparent;
-  border: 1px solid var(--accent);
-  color: var(--accent);
-  padding: 8px 16px;
-  border-radius: var(--radius);
-  cursor: pointer;
-  font-family: var(--font-mono);
-  font-size: 12px;
-}
-.btn-ghost:hover { background: var(--accent-dim); }
+## 4. (Alternative) Deploy from your computer without GitHub
 
-/* ---------- Gantt ---------- */
-.gantt-wrap { display: flex; flex-direction: column; gap: 0; }
-.gantt-header {
-  display: grid;
-  grid-template-columns: 200px 1fr;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  color: var(--text-faint);
-  border-bottom: 1px solid var(--border);
-  padding-bottom: 6px;
-  margin-bottom: 8px;
-}
-.gantt-scale { display: flex; }
-.gantt-scale span { flex: 1; text-align: left; border-left: 1px solid var(--border); padding-left: 4px; }
+If you'd rather skip GitHub:
+```bash
+npm install -g vercel
+cd trackline
+vercel login
+vercel --prod
+```
+It will prompt you to set `ANTHROPIC_API_KEY` the first time, or you can add it afterwards from the Vercel dashboard under **Project Settings → Environment Variables**.
 
-.gantt-row {
-  display: grid;
-  grid-template-columns: 200px 1fr;
-  align-items: center;
-  height: 40px;
-  border-bottom: 1px solid var(--grid-line);
-}
-.gantt-task-name { font-size: 13px; padding-right: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.gantt-track { position: relative; height: 100%; }
-.gantt-track-bg {
-  position: absolute; inset: 0;
-  background-image: linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
-}
-.gantt-bar {
-  position: absolute;
-  top: 9px; height: 22px;
-  border-radius: 5px;
-  background: var(--accent-dim);
-  border: 1px solid var(--accent);
-  overflow: hidden;
-}
-.gantt-bar-fill {
-  height: 100%;
-  background: var(--accent);
-  opacity: 0.55;
-}
-.gantt-bar-label {
-  position: absolute;
-  top: 0; left: 8px; height: 100%;
-  display: flex; align-items: center;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  color: var(--text);
-  white-space: nowrap;
-}
+## Notes
 
-/* ---------- Burndown ---------- */
-.burndown-wrap { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 10px; padding: 20px; position: relative; }
-
-/* ---------- Kanban ---------- */
-.kanban-wrap { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; align-items: start; }
-.kanban-col {
-  background: var(--bg-panel);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 12px;
-  min-height: 120px;
-}
-.kanban-col-head {
-  display: flex; justify-content: space-between; align-items: center;
-  font-family: var(--font-display); font-weight: 600; font-size: 13px;
-  margin-bottom: 10px; color: var(--text-dim);
-}
-.kanban-count {
-  font-family: var(--font-mono); font-size: 11px;
-  background: var(--bg-panel-2); padding: 1px 7px; border-radius: 100px;
-}
-.kanban-card {
-  background: var(--bg-panel-2);
-  border: 1px solid var(--border);
-  border-left: 3px solid var(--accent-2);
-  border-radius: 6px;
-  padding: 10px 12px;
-  margin-bottom: 8px;
-  font-size: 13px;
-  cursor: grab;
-}
-.kanban-card.dragging { opacity: 0.4; }
-.kanban-col.drag-over { border-color: var(--accent-2); background: var(--accent-2-dim); }
-
-/* ---------- RAID log ---------- */
-.raid-table {
-  width: 100%;
-  border-collapse: collapse;
-  background: var(--bg-panel);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  overflow: hidden;
-  font-size: 13px;
-}
-.raid-table th {
-  text-align: left;
-  font-family: var(--font-mono);
-  font-size: 10.5px;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--text-faint);
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--border);
-}
-.raid-table td {
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--grid-line);
-  vertical-align: top;
-}
-.raid-table tr:last-child td { border-bottom: none; }
-.raid-badge {
-  display: inline-block;
-  font-family: var(--font-mono);
-  font-size: 10.5px;
-  padding: 2px 8px;
-  border-radius: 100px;
-  border: 1px solid currentColor;
-}
-.raid-badge.type-risk { color: var(--danger); }
-.raid-badge.type-assumption { color: var(--accent-2); }
-.raid-badge.type-issue { color: var(--accent); }
-.raid-badge.type-dependency { color: #B392F0; }
-.raid-badge.impact-high { color: var(--danger); }
-.raid-badge.impact-medium { color: var(--accent); }
-.raid-badge.impact-low { color: var(--text-dim); }
-.raid-badge.status-open { color: var(--danger); }
-.raid-badge.status-monitoring { color: var(--accent); }
-.raid-badge.status-mitigated,
-.raid-badge.status-closed { color: var(--success); }
-
-/* ---------- Copilot ---------- */
-.copilot {
-  border-left: 1px solid var(--border);
-  background: var(--bg-panel);
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-}
-.copilot-head { padding: 16px 18px 10px; border-bottom: 1px solid var(--border); }
-.copilot-title { font-family: var(--font-display); font-weight: 600; font-size: 14px; display: block; }
-.copilot-hint { font-size: 11px; color: var(--text-faint); }
-
-.chat-log {
-  flex: 1;
-  overflow-y: auto;
-  padding: 16px 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.msg {
-  font-size: 13px;
-  line-height: 1.5;
-  padding: 10px 12px;
-  border-radius: 8px;
-  max-width: 100%;
-  white-space: pre-wrap;
-}
-.msg-assistant { background: var(--bg-panel-2); border: 1px solid var(--border); color: var(--text); }
-.msg-user { background: var(--accent-dim); border: 1px solid var(--accent); color: var(--text); align-self: flex-end; }
-.msg-note { font-family: var(--font-mono); font-size: 10.5px; color: var(--accent-2); }
-
-.chat-input-row {
-  display: flex; gap: 8px;
-  padding: 14px 18px 18px;
-  border-top: 1px solid var(--border);
-}
-.chat-input-row textarea {
-  flex: 1;
-  resize: none;
-  background: var(--bg-panel-2);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  color: var(--text);
-  padding: 9px 11px;
-  font-size: 13px;
-}
-.chat-input-row textarea:focus { outline: none; border-color: var(--accent-2); }
-.chat-input-row button {
-  background: var(--accent);
-  border: none;
-  color: var(--bg);
-  font-weight: 600;
-  border-radius: 8px;
-  padding: 0 16px;
-  cursor: pointer;
-}
-.chat-input-row button:disabled { opacity: 0.5; cursor: default; }
-
-/* ---------- Responsive ---------- */
-@media (max-width: 920px) {
-  .layout { grid-template-columns: 1fr; height: auto; }
-  .copilot { border-left: none; border-top: 1px solid var(--border); height: 480px; }
-  .kanban-wrap { grid-template-columns: 1fr; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  * { transition: none !important; }
-}
-
-@media print {
-  body { background: white; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .topbar, .project-bar, .ticker, .copilot, .view-actions, .empty-state button { display: none !important; }
-  .layout { grid-template-columns: 1fr; height: auto; display: block; }
-  .canvas { padding: 0; overflow: visible; }
-}
-
-:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
+- The API key is only ever read on the server (`api/chat.js`); it's never sent to the browser, so it's safe to deploy publicly.
+- `GET /api/chat` returns `{configured: true|false}` so the UI can show whether the key is set — this is what the "Assistant online" indicator checks.
+- To change the chart-drafting behavior or the assistant's tone, edit `SYSTEM_PROMPT` in `api/chat.js`.
+- Free-tier Vercel functions have a request timeout (10s on Hobby); if you raise `max_tokens` a lot in `api/chat.js`, very long replies could occasionally hit that limit.
+- Costs: you're billed by Anthropic per API call based on tokens used, not by Vercel (static hosting + serverless functions are free at this scale). A typical chat turn costs a fraction of a cent to a few cents depending on the model chosen.
