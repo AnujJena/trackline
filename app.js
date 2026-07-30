@@ -206,7 +206,7 @@ document.querySelectorAll("[data-export-png]").forEach((btn) => {
     const original = btn.textContent;
     btn.textContent = "Exporting…";
     try {
-      const canvas = await html2canvas(el, { backgroundColor: "#ffffff", scale: 2 });
+      const canvas = await html2canvas(el, { backgroundColor: "#232326", scale: 2 });
       downloadCanvas(canvas, btn.dataset.exportName || "chart");
     } catch (e) {
       alert("Export failed — try the Export PDF option instead.");
@@ -302,16 +302,16 @@ function renderBurndown(data) {
     data: {
       labels,
       datasets: [
-        { label: "Ideal", data: ideal, borderColor: "#94A3B8", borderDash: [5, 4], pointRadius: 0, tension: 0 },
-        { label: "Actual", data: actual, borderColor: "#2554E8", backgroundColor: "rgba(37,84,232,0.10)", fill: true, pointRadius: 3, tension: 0.25 },
+        { label: "Ideal", data: ideal, borderColor: "#6B6B72", borderDash: [5, 4], pointRadius: 0, tension: 0 },
+        { label: "Actual", data: actual, borderColor: "#F2B705", backgroundColor: "rgba(242,183,5,0.12)", fill: true, pointRadius: 3, tension: 0.25 },
       ],
     },
     options: {
       responsive: true,
-      plugins: { legend: { labels: { color: "#5B6B82", font: { family: "IBM Plex Mono", size: 11 } } } },
+      plugins: { legend: { labels: { color: "#A6A6AC", font: { family: "IBM Plex Mono", size: 11 } } } },
       scales: {
-        x: { ticks: { color: "#94A3B8" }, grid: { color: "rgba(37,84,232,0.05)" } },
-        y: { ticks: { color: "#94A3B8" }, grid: { color: "rgba(37,84,232,0.05)" }, title: { display: true, text: "Points remaining", color: "#5B6B82" } },
+        x: { ticks: { color: "#6B6B72" }, grid: { color: "rgba(255,255,255,0.05)" } },
+        y: { ticks: { color: "#6B6B72" }, grid: { color: "rgba(255,255,255,0.05)" }, title: { display: true, text: "Points remaining", color: "#A6A6AC" } },
       },
     },
   });
