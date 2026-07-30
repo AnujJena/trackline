@@ -48,9 +48,10 @@
 
   <section class="feature-section">
     <p class="feature-kicker">EVERYTHING YOU NEED</p>
-    <div class="feature-grid">
 
-      <div class="feature-card">
+    <div class="feature-grid-top">
+
+      <div class="feature-card" data-browse="gantt" role="button" tabindex="0">
         <div class="feature-icon">
           <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="12" width="4" height="7" rx="1" stroke="currentColor" stroke-width="1.6"/><rect x="10" y="7" width="4" height="12" rx="1" stroke="currentColor" stroke-width="1.6"/><rect x="17" y="3" width="4" height="16" rx="1" stroke="currentColor" stroke-width="1.6"/></svg>
         </div>
@@ -60,7 +61,7 @@
         </div>
       </div>
 
-      <div class="feature-card">
+      <div class="feature-card" data-browse="kanban" role="button" tabindex="0">
         <div class="feature-icon">
           <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="5" height="16" rx="1" stroke="currentColor" stroke-width="1.6"/><rect x="9.5" y="4" width="5" height="10" rx="1" stroke="currentColor" stroke-width="1.6"/><rect x="16" y="4" width="5" height="13" rx="1" stroke="currentColor" stroke-width="1.6"/></svg>
         </div>
@@ -70,7 +71,7 @@
         </div>
       </div>
 
-      <div class="feature-card">
+      <div class="feature-card" data-browse="burndown" role="button" tabindex="0">
         <div class="feature-icon">
           <svg viewBox="0 0 24 24" fill="none"><path d="M3 20 L8 13 L12 16 L21 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </div>
@@ -78,16 +79,27 @@
         <div class="feature-mini feature-mini-burn"></div>
       </div>
 
-      <div class="feature-card">
+      <div class="feature-card" data-browse="raid" role="button" tabindex="0">
         <div class="feature-icon">
-          <svg viewBox="0 0 24 24" fill="none"><path d="M4 5h16v11H8l-4 4V5z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+          <svg viewBox="0 0 24 24" fill="none"><path d="M12 3l8 4v5c0 5-3.4 8-8 9-4.6-1-8-4-8-9V7l8-4z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
         </div>
-        <h3>AI PM Assistant</h3>
-        <div class="feature-mini feature-mini-chat">
-          <span></span><span class="dim"></span>
+        <h3>RAID Log</h3>
+        <div class="feature-mini feature-mini-raid">
+          <span class="raid-dot risk"></span><span class="raid-dot assumption"></span><span class="raid-dot issue"></span><span class="raid-dot dependency"></span>
         </div>
       </div>
 
+    </div>
+
+    <div class="feature-featured" id="cardAiAssistant" role="button" tabindex="0">
+      <div class="feature-icon feature-icon-lg">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M4 5h16v11H8l-4 4V5z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+      </div>
+      <div class="feature-featured-text">
+        <h3>AI PM Assistant</h3>
+        <p>Chat about scheduling, risk, and estimation — or ask it to draft and edit any chart for you. Every conversation is saved so you can pick up where you left off.</p>
+      </div>
+      <span class="feature-featured-arrow">→</span>
     </div>
   </section>
 
@@ -97,7 +109,52 @@
 
 </div>
 
-<!-- ===================== APP ===================== -->
+<!-- ===================== BROWSE (per chart-type project picker) ===================== -->
+<div id="browseView" style="display:none;">
+  <header class="sub-header">
+    <div class="brand" id="brandHomeBrowse" role="button" tabindex="0" title="Back to home">
+      <span class="brand-mark">◇</span>
+      <span class="brand-name">TRACKLINE</span>
+    </div>
+    <a href="#" id="backToLandingFromBrowse" class="back-link">← Back to Home</a>
+  </header>
+  <div class="browse-wrap">
+    <div class="browse-head">
+      <div>
+        <h1 id="browseTitle">Gantt Timelines</h1>
+        <p class="view-sub" id="browseSub">All projects with a Gantt chart</p>
+      </div>
+      <button class="btn-primary" id="browseAddNew"><span>＋</span> New Project</button>
+    </div>
+    <div class="browse-grid" id="browseGrid"></div>
+  </div>
+</div>
+
+<!-- ===================== DEDICATED CHAT PAGE ===================== -->
+<div id="chatPageView" style="display:none;">
+  <header class="sub-header">
+    <div class="brand" id="brandHomeChat" role="button" tabindex="0" title="Back to home">
+      <span class="brand-mark">◇</span>
+      <span class="brand-name">TRACKLINE</span>
+    </div>
+    <a href="#" id="backToLandingFromChat" class="back-link">← Back to Home</a>
+  </header>
+  <div class="chatpage-layout">
+    <aside class="chat-sidebar">
+      <button class="btn-primary btn-block" id="btnNewChat"><span>＋</span> New chat</button>
+      <div class="chat-history-list" id="chatHistoryList"></div>
+    </aside>
+    <section class="chatpage-main">
+      <div class="chat-log" id="chatLogPage"></div>
+      <form class="chat-input-row" id="chatFormPage">
+        <textarea id="chatInputPage" placeholder="Ask a PM question, or describe/edit a chart…" rows="2"></textarea>
+        <button type="submit" id="chatSendPage">Send</button>
+      </form>
+    </section>
+  </div>
+</div>
+
+<!-- ===================== APP (charts + embedded copilot) ===================== -->
 <div id="appView" style="display:none;">
 
 <header class="topbar">
