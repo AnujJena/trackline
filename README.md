@@ -11,6 +11,8 @@ A project console built specifically for construction project management:
 - **Submittals & RFIs** — number, subject, ball-in-court, due date, status
 - **Punch List** — by location, trade, assigned sub, and status
 
+Every module can be filled in **manually** — each page has a "+ Add" button that opens a form (no AI required) — or via the assistant, or by loading a sample. Every row/card has a small "×" to delete it.
+
 Every project has a **type** (Residential / Commercial / Infrastructure) picked when you create it, which the assistant uses to tailor its advice.
 
 Ask the assistant to edit anything already on screen (e.g. *"push framing back a week"*, *"mark RFI-014 as answered"*, *"add a punch list item for Unit 204"*) — it's shown the current state of your schedule/logs each time, so edits build on what's there.

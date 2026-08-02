@@ -234,9 +234,10 @@
       <div class="view-head">
         <div>
           <h1>Project Schedule</h1>
-          <p class="view-sub">Ask the assistant: <em>"Plan a 12-week ground-up build as a schedule"</em>, or <em>"push framing back a week"</em> to edit.</p>
+          <p class="view-sub">Ask the assistant: <em>"Plan a 12-week ground-up build as a schedule"</em>, or add tasks manually below.</p>
         </div>
         <div class="view-actions">
+          <button class="btn-ghost" data-add-type="gantt">＋ Add Task</button>
           <button class="btn-ghost" data-export-png="ganttWrap" data-export-name="project-schedule">Export PNG</button>
           <button class="btn-ghost" data-export-print>Export PDF</button>
         </div>
@@ -253,19 +254,21 @@
       <div class="view-head">
         <div>
           <h1>Schedule Burndown</h1>
-          <p class="view-sub">Ask the assistant: <em>"Show a schedule burndown for a 60-day project"</em></p>
+          <p class="view-sub">Ask the assistant, or add each day's numbers manually below.</p>
         </div>
         <div class="view-actions">
+          <button class="btn-ghost" data-add-type="burndown">＋ Add Day</button>
           <button class="btn-ghost" data-export-png-canvas="burndownChart" data-export-name="schedule-burndown">Export PNG</button>
           <button class="btn-ghost" data-export-print>Export PDF</button>
         </div>
       </div>
-      <div class="burndown-wrap">
+      <div class="burndown-wrap" id="burndownWrap">
         <canvas id="burndownChart" height="320"></canvas>
         <div class="empty-state" id="burndownEmpty">
           <p>No progress data yet.</p>
           <button class="btn-ghost" data-sample="burndown">Load a sample sprint</button>
         </div>
+        <div id="burndownTable"></div>
       </div>
     </div>
 
@@ -273,9 +276,10 @@
       <div class="view-head">
         <div>
           <h1>Site Task Board</h1>
-          <p class="view-sub">Ask the assistant, or drag cards between columns. Try: <em>"move the slab pour to Done"</em></p>
+          <p class="view-sub">Ask the assistant, drag cards between columns, or add one manually.</p>
         </div>
         <div class="view-actions">
+          <button class="btn-ghost" data-add-type="kanban">＋ Add Card</button>
           <button class="btn-ghost" data-export-png="kanbanWrap" data-export-name="site-task-board">Export PNG</button>
           <button class="btn-ghost" data-export-print>Export PDF</button>
         </div>
@@ -292,9 +296,10 @@
       <div class="view-head">
         <div>
           <h1>RAID Log</h1>
-          <p class="view-sub">Ask the assistant: <em>"Build a RAID log for permit and weather risk"</em>, or <em>"add a risk about steel lead time"</em></p>
+          <p class="view-sub">Ask the assistant, or add a risk, assumption, issue, or dependency manually.</p>
         </div>
         <div class="view-actions">
+          <button class="btn-ghost" data-add-type="raid">＋ Add Item</button>
           <button class="btn-ghost" data-export-png="raidWrap" data-export-name="raid-log">Export PNG</button>
           <button class="btn-ghost" data-export-print>Export PDF</button>
         </div>
@@ -311,9 +316,10 @@
       <div class="view-head">
         <div>
           <h1>Daily Log</h1>
-          <p class="view-sub">Ask the assistant: <em>"Log today's site report — clear, 68°F, 14 crew, poured slab on grade"</em></p>
+          <p class="view-sub">Ask the assistant, or log today's site report manually.</p>
         </div>
         <div class="view-actions">
+          <button class="btn-ghost" data-add-type="dailylog">＋ Add Entry</button>
           <button class="btn-ghost" data-export-png="dailylogWrap" data-export-name="daily-log">Export PNG</button>
           <button class="btn-ghost" data-export-print>Export PDF</button>
         </div>
@@ -330,9 +336,10 @@
       <div class="view-head">
         <div>
           <h1>Submittals &amp; RFIs</h1>
-          <p class="view-sub">Ask the assistant: <em>"Open an RFI about the beam detail on sheet S-201"</em>, or <em>"mark RFI-014 as answered"</em></p>
+          <p class="view-sub">Ask the assistant, or log a submittal or RFI manually.</p>
         </div>
         <div class="view-actions">
+          <button class="btn-ghost" data-add-type="submittals">＋ Add Item</button>
           <button class="btn-ghost" data-export-png="submittalsWrap" data-export-name="submittals-rfi-log">Export PNG</button>
           <button class="btn-ghost" data-export-print>Export PDF</button>
         </div>
@@ -349,9 +356,10 @@
       <div class="view-head">
         <div>
           <h1>Punch List</h1>
-          <p class="view-sub">Ask the assistant: <em>"Add a punch list item for Unit 204 — touch up paint"</em></p>
+          <p class="view-sub">Ask the assistant, or add a punch list item manually.</p>
         </div>
         <div class="view-actions">
+          <button class="btn-ghost" data-add-type="punchlist">＋ Add Item</button>
           <button class="btn-ghost" data-export-png="punchlistWrap" data-export-name="punch-list">Export PNG</button>
           <button class="btn-ghost" data-export-print>Export PDF</button>
         </div>
@@ -397,6 +405,18 @@
     <div class="modal-actions">
       <button class="btn-secondary" id="modalCancel">Cancel</button>
       <button class="btn-primary" id="modalCreate">Create Project</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== ADD ITEM MODAL (manual entry, all 7 modules) ===================== -->
+<div class="modal-overlay" id="addItemModalOverlay" style="display:none;">
+  <div class="modal-box">
+    <h2 id="addItemModalTitle">Add Item</h2>
+    <div id="addItemModalFields"></div>
+    <div class="modal-actions">
+      <button class="btn-secondary" id="addItemCancel">Cancel</button>
+      <button class="btn-primary" id="addItemSubmit">Add</button>
     </div>
   </div>
 </div>

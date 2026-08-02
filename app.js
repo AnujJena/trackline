@@ -6,18 +6,15 @@ const PAGES = ["landingView", "appView", "browseView", "chatPageView"];
 
 // ===== State =====
 let state = {
-  gantt: null,       // [{id,name,start,end,progress}]
-  burndown: null,    // {days:[{day,ideal,actual}]}
-  kanban: null,      // {columns:[{name,cards:[{id,title}]}]}
-  raid: null,        // {items:[{id,type,description,owner,impact,status}]}
-  dailylog: null,    // {entries:[{id,date,weather,crew,workPerformed,delays}]}
-  submittals: null,  // {items:[{id,number,type,subject,ballInCourt,dueDate,status}]}
-  punchlist: null,   // {items:[{id,location,description,trade,assignedTo,status}]}
+  gantt: null, burndown: null, kanban: null, raid: null,
+  dailylog: null, submittals: null, punchlist: null,
 };
-let history = [];      // full API-role history: [{role, content}]
-let chatLogData = [];  // display log: [{kind:'user'|'assistant'|'note', text, viewTab?}]
+let history = [];
+let chatLogData = [];
 let burndownChartInstance = null;
 let activeProjectId = null;
+
+function todayISO() { return new Date().toISOString().slice(0, 10); }
 
 // ===== Sample data (construction-flavored) =====
 const SAMPLES = {
@@ -80,9 +77,7 @@ const SAMPLES = {
 
 // ===== Page navigation =====
 function showPage(id) {
-  PAGES.forEach((pid) => {
-    document.getElementById(pid).style.display = pid === id ? "block" : "none";
-  });
+  PAGES.forEach((pid) => { document.getElementById(pid).style.display = pid === id ? "block" : "none"; });
 }
 function showApp() { showPage("appView"); }
 function showLanding() { showPage("landingView"); }
@@ -96,22 +91,196 @@ function promptNewProject(onCreate) {
   document.getElementById("modalProjectName").focus();
   modalCallback = onCreate;
 }
-function closeModal() {
+function closeNewProjectModal() {
   document.getElementById("newProjectModalOverlay").style.display = "none";
   modalCallback = null;
 }
-document.getElementById("modalCancel").addEventListener("click", closeModal);
+document.getElementById("modalCancel").addEventListener("click", closeNewProjectModal);
 document.getElementById("modalCreate").addEventListener("click", () => {
   const name = document.getElementById("modalProjectName").value.trim();
   const type = document.getElementById("modalProjectType").value;
   if (!name) { alert("Please enter a project name."); return; }
   const cb = modalCallback;
-  closeModal();
+  closeNewProjectModal();
   if (cb) cb(name, type);
 });
 document.getElementById("modalProjectName").addEventListener("keydown", (e) => {
   if (e.key === "Enter") { e.preventDefault(); document.getElementById("modalCreate").click(); }
 });
+
+// ===== Add Item modal (manual entry for all 7 modules) =====
+function fieldRow(label, inputHtml) { return `<label>${label}</label>${inputHtml}`; }
+
+function ensureCollection(type) {
+  if (type === "gantt" && !state.gantt) state.gantt = [];
+  if (type === "kanban" && !state.kanban) state.kanban = { columns: [{ name: "To Do", cards: [] }, { name: "In Progress", cards: [] }, { name: "Done", cards: [] }] };
+  if (type === "raid" && !state.raid) state.raid = { items: [] };
+  if (type === "dailylog" && !state.dailylog) state.dailylog = { entries: [] };
+  if (type === "submittals" && !state.submittals) state.submittals = { items: [] };
+  if (type === "punchlist" && !state.punchlist) state.punchlist = { items: [] };
+  if (type === "burndown" && !state.burndown) state.burndown = { days: [] };
+}
+
+const ADD_TITLES = {
+  gantt: "Add Task", kanban: "Add Card", raid: "Add RAID Item", dailylog: "Add Daily Log Entry",
+  submittals: "Add Submittal / RFI", punchlist: "Add Punch List Item", burndown: "Add Day",
+};
+
+const FIELD_BUILDERS = {
+  gantt: () => `
+    ${fieldRow("Task name", `<input type="text" id="af-name" placeholder="e.g. Rough-in electrical">`)}
+    ${fieldRow("Start date", `<input type="date" id="af-start">`)}
+    ${fieldRow("End date", `<input type="date" id="af-end">`)}
+    ${fieldRow("Progress (%)", `<input type="number" id="af-progress" min="0" max="100" value="0">`)}
+  `,
+  kanban: () => {
+    const cols = state.kanban.columns.map((c) => c.name);
+    return `
+    ${fieldRow("Card title", `<input type="text" id="af-title" placeholder="e.g. Pour footings">`)}
+    ${fieldRow("Column", `<select id="af-column">${cols.map((c) => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("")}</select>`)}
+    `;
+  },
+  raid: () => `
+    ${fieldRow("Type", `<select id="af-type"><option>Risk</option><option>Assumption</option><option>Issue</option><option>Dependency</option></select>`)}
+    ${fieldRow("Description", `<textarea id="af-description" rows="3" placeholder="e.g. Steel delivery could slip past framing start"></textarea>`)}
+    ${fieldRow("Owner", `<input type="text" id="af-owner" placeholder="e.g. PM">`)}
+    ${fieldRow("Impact", `<select id="af-impact"><option>Low</option><option selected>Medium</option><option>High</option></select>`)}
+    ${fieldRow("Status", `<select id="af-status"><option selected>Open</option><option>Monitoring</option><option>Mitigated</option><option>Closed</option></select>`)}
+  `,
+  dailylog: () => `
+    ${fieldRow("Date", `<input type="date" id="af-date" value="${todayISO()}">`)}
+    ${fieldRow("Weather", `<input type="text" id="af-weather" placeholder="e.g. Clear, 75°F">`)}
+    ${fieldRow("Crew", `<input type="text" id="af-crew" placeholder="e.g. 10 (Framing crew)">`)}
+    ${fieldRow("Work performed", `<textarea id="af-workPerformed" rows="3"></textarea>`)}
+    ${fieldRow("Delays", `<input type="text" id="af-delays" value="None">`)}
+  `,
+  submittals: () => `
+    ${fieldRow("Number", `<input type="text" id="af-number" placeholder="e.g. RFI-015 or SUB-010">`)}
+    ${fieldRow("Type", `<select id="af-type"><option>RFI</option><option>Submittal</option></select>`)}
+    ${fieldRow("Subject", `<textarea id="af-subject" rows="3"></textarea>`)}
+    ${fieldRow("Ball-in-Court", `<input type="text" id="af-ballInCourt" placeholder="e.g. Architect">`)}
+    ${fieldRow("Due date", `<input type="date" id="af-dueDate">`)}
+    ${fieldRow("Status", `<select id="af-status"><option selected>Open</option><option>Answered</option><option>Approved</option><option>Rejected</option><option>Revise &amp; Resubmit</option></select>`)}
+  `,
+  punchlist: () => `
+    ${fieldRow("Location", `<input type="text" id="af-location" placeholder="e.g. Unit 204 — Kitchen">`)}
+    ${fieldRow("Description", `<textarea id="af-description" rows="3"></textarea>`)}
+    ${fieldRow("Trade", `<input type="text" id="af-trade" placeholder="e.g. Painting">`)}
+    ${fieldRow("Assigned to", `<input type="text" id="af-assignedTo" placeholder="e.g. ABC Painting Co.">`)}
+    ${fieldRow("Status", `<select id="af-status"><option selected>Open</option><option>In Progress</option><option>Complete</option><option>Verified</option></select>`)}
+  `,
+  burndown: () => {
+    const nextDay = state.burndown.days.length;
+    const lastActual = nextDay > 0 ? state.burndown.days[nextDay - 1].actual : 0;
+    const lastIdeal = nextDay > 0 ? state.burndown.days[nextDay - 1].ideal : 0;
+    return `
+    ${fieldRow("Day #", `<input type="number" id="af-day" value="${nextDay}">`)}
+    ${fieldRow("Planned remaining", `<input type="number" id="af-ideal" value="${lastIdeal}">`)}
+    ${fieldRow("Actual remaining", `<input type="number" id="af-actual" value="${lastActual}">`)}
+    `;
+  },
+};
+
+function openAddModal(type) {
+  ensureCollection(type);
+  document.getElementById("addItemModalTitle").textContent = ADD_TITLES[type];
+  document.getElementById("addItemModalFields").innerHTML = FIELD_BUILDERS[type]();
+  document.getElementById("addItemModalOverlay").dataset.type = type;
+  document.getElementById("addItemModalOverlay").style.display = "flex";
+  const firstInput = document.querySelector("#addItemModalFields input, #addItemModalFields select, #addItemModalFields textarea");
+  if (firstInput) firstInput.focus();
+}
+function closeAddModal() {
+  document.getElementById("addItemModalOverlay").style.display = "none";
+}
+document.getElementById("addItemCancel").addEventListener("click", closeAddModal);
+document.querySelectorAll("[data-add-type]").forEach((btn) => {
+  btn.addEventListener("click", () => openAddModal(btn.dataset.addType));
+});
+
+document.getElementById("addItemSubmit").addEventListener("click", () => {
+  const type = document.getElementById("addItemModalOverlay").dataset.type;
+  const val = (id) => {
+    const el = document.getElementById(`af-${id}`);
+    return el ? el.value.trim() : "";
+  };
+
+  if (type === "gantt") {
+    const name = val("name"), start = val("start"), end = val("end");
+    if (!name || !start || !end) { alert("Please fill in task name, start date, and end date."); return; }
+    const nextId = state.gantt.length ? Math.max(...state.gantt.map((t) => Number(t.id) || 0)) + 1 : 1;
+    state.gantt.push({ id: nextId, name, start, end, progress: Number(val("progress")) || 0 });
+    renderGantt(state.gantt);
+  } else if (type === "kanban") {
+    const title = val("title"), columnName = val("column");
+    if (!title) { alert("Please enter a card title."); return; }
+    const col = state.kanban.columns.find((c) => c.name === columnName) || state.kanban.columns[0];
+    col.cards.push({ id: "c" + Date.now(), title });
+    renderKanban(state.kanban);
+  } else if (type === "raid") {
+    const description = val("description");
+    if (!description) { alert("Please enter a description."); return; }
+    state.raid.items.push({ id: "r" + Date.now(), type: val("type"), description, owner: val("owner"), impact: val("impact"), status: val("status") });
+    renderRaid(state.raid);
+  } else if (type === "dailylog") {
+    const date = val("date");
+    if (!date) { alert("Please choose a date."); return; }
+    state.dailylog.entries.push({ id: "d" + Date.now(), date, weather: val("weather"), crew: val("crew"), workPerformed: val("workPerformed"), delays: val("delays") || "None" });
+    renderDailyLog(state.dailylog);
+  } else if (type === "submittals") {
+    const number = val("number"), subject = val("subject");
+    if (!number || !subject) { alert("Please enter a number and subject."); return; }
+    state.submittals.items.push({ id: "s" + Date.now(), number, type: val("type"), subject, ballInCourt: val("ballInCourt"), dueDate: val("dueDate"), status: val("status") });
+    renderSubmittals(state.submittals);
+  } else if (type === "punchlist") {
+    const location = val("location"), description = val("description");
+    if (!location || !description) { alert("Please enter a location and description."); return; }
+    state.punchlist.items.push({ id: "p" + Date.now(), location, description, trade: val("trade"), assignedTo: val("assignedTo"), status: val("status") });
+    renderPunchlist(state.punchlist);
+  } else if (type === "burndown") {
+    const day = Number(val("day")), ideal = Number(val("ideal")), actual = Number(val("actual"));
+    state.burndown.days = state.burndown.days.filter((d) => d.day !== day);
+    state.burndown.days.push({ day, ideal, actual });
+    state.burndown.days.sort((a, b) => a.day - b.day);
+    renderBurndown(state.burndown);
+  }
+
+  persistActiveProject();
+  closeAddModal();
+});
+
+// ===== Delete row/card (event delegation, works after any re-render) =====
+document.addEventListener("click", (e) => {
+  const btn = e.target.closest(".row-delete-btn");
+  if (!btn) return;
+  const [type, id] = btn.dataset.del.split(":");
+  deleteItem(type, id);
+});
+function deleteItem(type, id) {
+  if (type === "gantt") {
+    state.gantt = state.gantt.filter((t) => String(t.id) !== id);
+    renderGantt(state.gantt);
+  } else if (type === "kanban") {
+    state.kanban.columns.forEach((col) => { col.cards = col.cards.filter((c) => c.id !== id); });
+    renderKanban(state.kanban);
+  } else if (type === "raid") {
+    state.raid.items = state.raid.items.filter((i) => i.id !== id);
+    renderRaid(state.raid);
+  } else if (type === "dailylog") {
+    state.dailylog.entries = state.dailylog.entries.filter((i) => i.id !== id);
+    renderDailyLog(state.dailylog);
+  } else if (type === "submittals") {
+    state.submittals.items = state.submittals.items.filter((i) => i.id !== id);
+    renderSubmittals(state.submittals);
+  } else if (type === "punchlist") {
+    state.punchlist.items = state.punchlist.items.filter((i) => i.id !== id);
+    renderPunchlist(state.punchlist);
+  } else if (type === "burndown") {
+    state.burndown.days = state.burndown.days.filter((d) => String(d.day) !== id);
+    renderBurndown(state.burndown);
+  }
+  persistActiveProject();
+}
 
 // ===== Projects (localStorage) =====
 function loadAllProjects() {
@@ -238,10 +407,7 @@ function createProjectAndOpen(name, type, tab, goToApp = true) {
   localStorage.setItem(ACTIVE_KEY, id);
   loadProjectIntoApp(projects[id]);
   renderProjectSelector();
-  if (goToApp) {
-    showApp();
-    switchView(tab);
-  }
+  if (goToApp) { showApp(); switchView(tab); }
 }
 
 // ===== Tabs =====
@@ -258,11 +424,7 @@ function switchView(name) {
 }
 
 // ===== Sample loaders =====
-document.querySelectorAll("[data-sample]").forEach((btn) => {
-  btn.addEventListener("click", () => {
-    loadSample(btn.dataset.sample);
-  });
-});
+document.querySelectorAll("[data-sample]").forEach((btn) => { btn.addEventListener("click", () => loadSample(btn.dataset.sample)); });
 function loadSample(kind) {
   if (kind === "gantt") state.gantt = SAMPLES.gantt, renderGantt(state.gantt);
   if (kind === "burndown") state.burndown = SAMPLES.burndown, renderBurndown(state.burndown);
@@ -306,9 +468,7 @@ function downloadCanvas(canvas, name) {
   link.href = canvas.toDataURL("image/png");
   link.click();
 }
-document.querySelectorAll("[data-export-print]").forEach((btn) => {
-  btn.addEventListener("click", () => window.print());
-});
+document.querySelectorAll("[data-export-print]").forEach((btn) => { btn.addEventListener("click", () => window.print()); });
 
 // ===== Gantt rendering =====
 function renderGantt(tasks) {
@@ -344,6 +504,7 @@ function renderGantt(tasks) {
           </div>
           <div class="gantt-bar-label" style="left:calc(${leftPct}% + 8px)">${escapeHtml(t.name)} · ${t.progress || 0}%</div>
         </div>
+        <button class="row-delete-btn" data-del="gantt:${t.id}" title="Delete task">×</button>
       </div>`;
   });
 
@@ -351,6 +512,7 @@ function renderGantt(tasks) {
     <div class="gantt-header">
       <div>Task</div>
       <div class="gantt-scale">${scaleHtml}</div>
+      <div></div>
     </div>
     ${rows}
   `;
@@ -361,9 +523,11 @@ function renderBurndown(data) {
   state.burndown = data;
   const emptyEl = document.getElementById("burndownEmpty");
   const canvas = document.getElementById("burndownChart");
+  const tableEl = document.getElementById("burndownTable");
   if (!data || !data.days || !data.days.length) {
     emptyEl.style.display = "block";
     canvas.style.display = "none";
+    tableEl.innerHTML = "";
     return;
   }
   emptyEl.style.display = "none";
@@ -392,6 +556,24 @@ function renderBurndown(data) {
       },
     },
   });
+
+  const rows = [...data.days]
+    .sort((a, b) => a.day - b.day)
+    .map(
+      (d) => `
+      <tr>
+        <td>Day ${d.day}</td>
+        <td>${d.ideal}</td>
+        <td>${d.actual}</td>
+        <td class="col-delete"><button class="row-delete-btn" data-del="burndown:${d.day}" title="Delete day">×</button></td>
+      </tr>`
+    )
+    .join("");
+  tableEl.innerHTML = `
+    <table class="log-table">
+      <thead><tr><th>Day</th><th>Planned</th><th>Actual</th><th></th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
 }
 
 // ===== Kanban rendering =====
@@ -409,7 +591,7 @@ function renderKanban(data) {
     <div class="kanban-col" data-col="${ci}">
       <div class="kanban-col-head"><span>${escapeHtml(col.name)}</span><span class="kanban-count">${col.cards.length}</span></div>
       <div class="kanban-cards" data-col-cards="${ci}">
-        ${col.cards.map((card) => `<div class="kanban-card" draggable="true" data-card-id="${card.id}">${escapeHtml(card.title)}</div>`).join("")}
+        ${col.cards.map((card) => `<div class="kanban-card" draggable="true" data-card-id="${card.id}">${escapeHtml(card.title)}<button class="row-delete-btn" data-del="kanban:${card.id}" title="Delete card">×</button></div>`).join("")}
       </div>
     </div>`
     )
@@ -421,22 +603,15 @@ function renderKanban(data) {
 function attachDragEvents() {
   let draggedId = null;
   document.querySelectorAll(".kanban-card").forEach((card) => {
-    card.addEventListener("dragstart", () => {
-      draggedId = card.dataset.cardId;
-      card.classList.add("dragging");
-    });
+    card.addEventListener("dragstart", () => { draggedId = card.dataset.cardId; card.classList.add("dragging"); });
     card.addEventListener("dragend", () => card.classList.remove("dragging"));
   });
   document.querySelectorAll(".kanban-col").forEach((col) => {
-    col.addEventListener("dragover", (e) => {
-      e.preventDefault();
-      col.classList.add("drag-over");
-    });
+    col.addEventListener("dragover", (e) => { e.preventDefault(); col.classList.add("drag-over"); });
     col.addEventListener("dragleave", () => col.classList.remove("drag-over"));
     col.addEventListener("drop", () => {
       col.classList.remove("drag-over");
-      const targetIdx = Number(col.dataset.col);
-      moveCard(draggedId, targetIdx);
+      moveCard(draggedId, Number(col.dataset.col));
     });
   });
 }
@@ -471,12 +646,13 @@ function renderRaid(data) {
         <td>${escapeHtml(item.owner || "—")}</td>
         <td><span class="raid-badge impact-${slug(item.impact)}">${escapeHtml(item.impact || "—")}</span></td>
         <td><span class="raid-badge status-${slug(item.status)}">${escapeHtml(item.status || "—")}</span></td>
+        <td class="col-delete"><button class="row-delete-btn" data-del="raid:${item.id}" title="Delete item">×</button></td>
       </tr>`
     )
     .join("");
   wrap.innerHTML = `
     <table class="raid-table">
-      <thead><tr><th>Type</th><th>Description</th><th>Owner</th><th>Impact</th><th>Status</th></tr></thead>
+      <thead><tr><th>Type</th><th>Description</th><th>Owner</th><th>Impact</th><th>Status</th><th></th></tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
 }
@@ -500,12 +676,13 @@ function renderDailyLog(data) {
         <td>${escapeHtml(e.crew || "—")}</td>
         <td>${escapeHtml(e.workPerformed || "—")}</td>
         <td>${escapeHtml(e.delays || "None")}</td>
+        <td class="col-delete"><button class="row-delete-btn" data-del="dailylog:${e.id}" title="Delete entry">×</button></td>
       </tr>`
     )
     .join("");
   wrap.innerHTML = `
     <table class="log-table">
-      <thead><tr><th>Date</th><th>Weather</th><th>Crew</th><th>Work Performed</th><th>Delays</th></tr></thead>
+      <thead><tr><th>Date</th><th>Weather</th><th>Crew</th><th>Work Performed</th><th>Delays</th><th></th></tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
 }
@@ -528,12 +705,13 @@ function renderSubmittals(data) {
         <td>${escapeHtml(item.ballInCourt || "—")}</td>
         <td>${escapeHtml(item.dueDate || "—")}</td>
         <td><span class="log-badge status-${slug(item.status)}">${escapeHtml(item.status || "—")}</span></td>
+        <td class="col-delete"><button class="row-delete-btn" data-del="submittals:${item.id}" title="Delete item">×</button></td>
       </tr>`
     )
     .join("");
   wrap.innerHTML = `
     <table class="log-table">
-      <thead><tr><th>Number</th><th>Subject</th><th>Ball-in-Court</th><th>Due</th><th>Status</th></tr></thead>
+      <thead><tr><th>Number</th><th>Subject</th><th>Ball-in-Court</th><th>Due</th><th>Status</th><th></th></tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
 }
@@ -556,12 +734,13 @@ function renderPunchlist(data) {
         <td>${escapeHtml(item.trade || "—")}</td>
         <td>${escapeHtml(item.assignedTo || "—")}</td>
         <td><span class="log-badge status-${slug(item.status)}">${escapeHtml(item.status || "—")}</span></td>
+        <td class="col-delete"><button class="row-delete-btn" data-del="punchlist:${item.id}" title="Delete item">×</button></td>
       </tr>`
     )
     .join("");
   wrap.innerHTML = `
     <table class="log-table">
-      <thead><tr><th>Location</th><th>Description</th><th>Trade</th><th>Assigned To</th><th>Status</th></tr></thead>
+      <thead><tr><th>Location</th><th>Description</th><th>Trade</th><th>Assigned To</th><th>Status</th><th></th></tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
 }
@@ -569,9 +748,7 @@ function renderPunchlist(data) {
 function slug(s) { return String(s || "").toLowerCase().replace(/&/g, "and").replace(/\s+/g, "-"); }
 
 function rebindSampleButton(container) {
-  container.querySelectorAll("[data-sample]").forEach((btn) => {
-    btn.addEventListener("click", () => loadSample(btn.dataset.sample));
-  });
+  container.querySelectorAll("[data-sample]").forEach((btn) => { btn.addEventListener("click", () => loadSample(btn.dataset.sample)); });
 }
 
 function escapeHtml(str) {
@@ -585,8 +762,7 @@ function timeAgo(ts) {
   if (mins < 60) return `${mins}m ago`;
   const hrs = Math.floor(mins / 60);
   if (hrs < 24) return `${hrs}h ago`;
-  const days = Math.floor(hrs / 24);
-  return `${days}d ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
 }
 
 // ===== Ticker =====
@@ -610,10 +786,7 @@ let currentBrowseType = "gantt";
 
 function chartStat(type, chart) {
   if (type === "gantt") return `${chart.length} task${chart.length === 1 ? "" : "s"}`;
-  if (type === "kanban") {
-    const total = chart.columns.reduce((n, c) => n + c.cards.length, 0);
-    return `${chart.columns.length} columns · ${total} cards`;
-  }
+  if (type === "kanban") { const total = chart.columns.reduce((n, c) => n + c.cards.length, 0); return `${chart.columns.length} columns · ${total} cards`; }
   if (type === "burndown") return `${chart.days.length}-day sprint`;
   if (type === "raid") return `${chart.items.length} item${chart.items.length === 1 ? "" : "s"}`;
   if (type === "dailylog") return `${chart.entries.length} entr${chart.entries.length === 1 ? "y" : "ies"}`;
@@ -649,11 +822,7 @@ function renderBrowseGrid(type) {
   matches.sort((a, b) => (b[1].updatedAt || 0) - (a[1].updatedAt || 0));
 
   if (!matches.length) {
-    grid.innerHTML = `
-      <div class="browse-empty">
-        <p>${CHART_META[type].empty}</p>
-        <button class="btn-primary" id="browseEmptyAdd"><span>＋</span> Add New Project</button>
-      </div>`;
+    grid.innerHTML = `<div class="browse-empty"><p>${CHART_META[type].empty}</p><button class="btn-primary" id="browseEmptyAdd"><span>＋</span> Add New Project</button></div>`;
     document.getElementById("browseEmptyAdd").addEventListener("click", () => {
       promptNewProject((name, ptype) => createProjectAndOpen(name, ptype, type, true));
     });
@@ -692,10 +861,7 @@ document.getElementById("backToLandingFromBrowse").addEventListener("click", (e)
 document.getElementById("brandHomeBrowse").addEventListener("click", () => showLanding());
 
 // ===================== DEDICATED CHAT PAGE =====================
-function openChatPage() {
-  renderChatHistoryList();
-  showPage("chatPageView");
-}
+function openChatPage() { renderChatHistoryList(); showPage("chatPageView"); }
 function renderChatHistoryList() {
   const projects = loadAllProjects();
   const list = document.getElementById("chatHistoryList");
@@ -712,10 +878,7 @@ function renderChatHistoryList() {
     })
     .join("");
   list.querySelectorAll(".chat-history-item").forEach((item) => {
-    item.addEventListener("click", () => {
-      switchActiveProject(item.dataset.projectId);
-      renderChatHistoryList();
-    });
+    item.addEventListener("click", () => { switchActiveProject(item.dataset.projectId); renderChatHistoryList(); });
   });
 }
 document.getElementById("btnNewChat").addEventListener("click", () => {
@@ -732,6 +895,7 @@ const CHAT_MOUNTS = [
   { log: "chatLog", form: "chatForm", input: "chatInput", send: "chatSend" },
   { log: "chatLogPage", form: "chatFormPage", input: "chatInputPage", send: "chatSendPage" },
 ];
+const VIEW_LABELS = { gantt: "Schedule", kanban: "Site Tasks", burndown: "Progress", raid: "RAID Log", dailylog: "Daily Log", submittals: "Submittals/RFI", punchlist: "Punch List" };
 
 function addMessage(role, text) {
   chatLogData.push({ kind: role, text });
@@ -757,19 +921,12 @@ function renderChatBubble(container, kind, text, viewTab) {
   container.appendChild(div);
   container.scrollTop = container.scrollHeight;
 }
-const VIEW_LABELS = {
-  gantt: "Schedule", kanban: "Site Tasks", burndown: "Progress", raid: "RAID Log",
-  dailylog: "Daily Log", submittals: "Submittals/RFI", punchlist: "Punch List",
-};
 function rebuildChatLogDom() {
   CHAT_MOUNTS.forEach((m) => { const el = document.getElementById(m.log); if (el) el.innerHTML = ""; });
   if (!chatLogData.length) {
     CHAT_MOUNTS.forEach((m) =>
-      renderChatBubble(
-        document.getElementById(m.log),
-        "assistant",
-        "Hi — I'm your construction project management assistant. Ask me anything about scheduling, RFIs, change orders, safety, or subcontractor coordination, or ask me to draft or edit your schedule, site task board, burndown, RAID log, daily log, submittals/RFI log, or punch list."
-      )
+      renderChatBubble(document.getElementById(m.log), "assistant",
+        "Hi — I'm your construction project management assistant. Ask me anything about scheduling, RFIs, change orders, safety, or subcontractor coordination, or ask me to draft or edit your schedule, site task board, burndown, RAID log, daily log, submittals/RFI log, or punch list. You can also add items manually with the \"+ Add\" button on each page.")
     );
     return;
   }
@@ -785,7 +942,6 @@ function extractJsonAction(reply) {
 function handleAssistantReply(reply) {
   const action = extractJsonAction(reply);
   const spokenText = reply.replace(/```json\s*[\s\S]*?```/i, "").trim();
-
   if (spokenText) addMessage("assistant", spokenText);
 
   if (action && action.action) {
@@ -876,10 +1032,7 @@ CHAT_MOUNTS.forEach((m) => {
     sendChatMessage(text);
   });
   input.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      form.requestSubmit();
-    }
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); form.requestSubmit(); }
   });
 });
 
@@ -889,10 +1042,7 @@ document.getElementById("btnAddProject").addEventListener("click", () => {
 });
 document.getElementById("btnViewProjects").addEventListener("click", () => showApp());
 document.getElementById("navDashboard").addEventListener("click", (e) => { e.preventDefault(); showApp(); });
-document.getElementById("navHelp").addEventListener("click", (e) => {
-  e.preventDefault();
-  document.getElementById("helpPanel").classList.toggle("open");
-});
+document.getElementById("navHelp").addEventListener("click", (e) => { e.preventDefault(); document.getElementById("helpPanel").classList.toggle("open"); });
 document.getElementById("brandHome").addEventListener("click", () => { persistActiveProject(); showLanding(); });
 
 // ===== API key status check =====
@@ -902,13 +1052,8 @@ document.getElementById("brandHome").addEventListener("click", () => { persistAc
   try {
     const res = await fetch("/api/chat", { method: "GET" });
     const data = await res.json();
-    if (data.configured) {
-      dot.classList.add("ok");
-      text.textContent = "Assistant online";
-    } else {
-      dot.classList.add("bad");
-      text.textContent = "API key missing";
-    }
+    if (data.configured) { dot.classList.add("ok"); text.textContent = "Assistant online"; }
+    else { dot.classList.add("bad"); text.textContent = "API key missing"; }
   } catch {
     dot.classList.add("bad");
     text.textContent = "Server unreachable";
