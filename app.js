@@ -6,25 +6,30 @@ const PAGES = ["landingView", "appView", "browseView", "chatPageView"];
 
 // ===== State =====
 let state = {
-  gantt: null,     // [{id,name,start,end,progress}]
-  burndown: null,  // {days:[{day,ideal,actual}]}
-  kanban: null,    // {columns:[{name,cards:[{id,title}]}]}
-  raid: null,      // {items:[{id,type,description,owner,impact,status}]}
+  gantt: null,       // [{id,name,start,end,progress}]
+  burndown: null,    // {days:[{day,ideal,actual}]}
+  kanban: null,      // {columns:[{name,cards:[{id,title}]}]}
+  raid: null,        // {items:[{id,type,description,owner,impact,status}]}
+  dailylog: null,    // {entries:[{id,date,weather,crew,workPerformed,delays}]}
+  submittals: null,  // {items:[{id,number,type,subject,ballInCourt,dueDate,status}]}
+  punchlist: null,   // {items:[{id,location,description,trade,assignedTo,status}]}
 };
 let history = [];      // full API-role history: [{role, content}]
 let chatLogData = [];  // display log: [{kind:'user'|'assistant'|'note', text, viewTab?}]
 let burndownChartInstance = null;
 let activeProjectId = null;
 
-// ===== Sample data =====
+// ===== Sample data (construction-flavored) =====
 const SAMPLES = {
   gantt: [
-    { id: 1, name: "Discovery & requirements", start: "2026-08-03", end: "2026-08-09", progress: 100 },
-    { id: 2, name: "UX wireframes", start: "2026-08-10", end: "2026-08-16", progress: 80 },
-    { id: 3, name: "Backend build", start: "2026-08-10", end: "2026-08-30", progress: 40 },
-    { id: 4, name: "Frontend build", start: "2026-08-17", end: "2026-09-06", progress: 15 },
-    { id: 5, name: "QA & bug bash", start: "2026-09-07", end: "2026-09-13", progress: 0 },
-    { id: 6, name: "Launch", start: "2026-09-14", end: "2026-09-14", progress: 0 },
+    { id: 1, name: "Mobilization & permits", start: "2026-08-03", end: "2026-08-09", progress: 100 },
+    { id: 2, name: "Sitework & excavation", start: "2026-08-10", end: "2026-08-23", progress: 70 },
+    { id: 3, name: "Foundation & footings", start: "2026-08-24", end: "2026-09-06", progress: 30 },
+    { id: 4, name: "Framing", start: "2026-09-07", end: "2026-09-27", progress: 0 },
+    { id: 5, name: "MEP rough-in", start: "2026-09-21", end: "2026-10-11", progress: 0 },
+    { id: 6, name: "Insulation & drywall", start: "2026-10-12", end: "2026-10-25", progress: 0 },
+    { id: 7, name: "Interior finishes", start: "2026-10-26", end: "2026-11-15", progress: 0 },
+    { id: 8, name: "Final inspections & punch list", start: "2026-11-16", end: "2026-11-22", progress: 0 },
   ],
   burndown: {
     days: Array.from({ length: 11 }, (_, i) => ({
@@ -35,17 +40,40 @@ const SAMPLES = {
   },
   kanban: {
     columns: [
-      { name: "To Do", cards: [{ id: "c1", title: "Draft onboarding checklist" }, { id: "c2", title: "Set up client Slack channel" }] },
-      { name: "In Progress", cards: [{ id: "c3", title: "Collect brand assets" }] },
-      { name: "Done", cards: [{ id: "c4", title: "Send welcome email" }, { id: "c5", title: "Kickoff call scheduled" }] },
+      { name: "To Do", cards: [{ id: "c1", title: "Order rooftop HVAC units" }, { id: "c2", title: "Schedule electrical rough-in inspection" }] },
+      { name: "In Progress", cards: [{ id: "c3", title: "Frame 2nd floor east wing" }] },
+      { name: "Done", cards: [{ id: "c4", title: "Pour foundation slab" }, { id: "c5", title: "Backfill & compact" }] },
     ],
   },
   raid: {
     items: [
-      { id: "r1", type: "Risk", description: "Vendor migration could slip past go-live date", owner: "PM", impact: "High", status: "Open" },
-      { id: "r2", type: "Assumption", description: "Current vendor will provide a full data export", owner: "Vendor lead", impact: "Medium", status: "Monitoring" },
-      { id: "r3", type: "Issue", description: "Legacy API docs are outdated", owner: "Tech lead", impact: "Medium", status: "Open" },
-      { id: "r4", type: "Dependency", description: "Security review must complete before launch", owner: "Security team", impact: "High", status: "Open" },
+      { id: "r1", type: "Risk", description: "Steel delivery could slip past framing start date", owner: "PM", impact: "High", status: "Open" },
+      { id: "r2", type: "Assumption", description: "Local AHJ will complete foundation inspection within 48 hours of request", owner: "Site Super", impact: "Medium", status: "Monitoring" },
+      { id: "r3", type: "Issue", description: "Existing utility line not shown on civil drawings", owner: "Civil Engineer", impact: "Medium", status: "Open" },
+      { id: "r4", type: "Dependency", description: "Framing cannot start until foundation passes inspection", owner: "Site Super", impact: "High", status: "Open" },
+    ],
+  },
+  dailylog: {
+    entries: [
+      { id: "d1", date: "2026-08-24", weather: "Clear, 78°F", crew: "12 (Concrete crew of 8, Laborers 4)", workPerformed: "Set foundation forms, placed rebar for footings", delays: "None" },
+      { id: "d2", date: "2026-08-25", weather: "Partly cloudy, 74°F", crew: "10 (Concrete crew of 8, PM on site)", workPerformed: "Poured footings north side", delays: "1hr delay waiting on concrete truck" },
+      { id: "d3", date: "2026-08-26", weather: "Rain, 65°F", crew: "4 (Laborers only)", workPerformed: "Site cleanup, material staging under cover", delays: "Concrete pour postponed due to rain" },
+    ],
+  },
+  submittals: {
+    items: [
+      { id: "s1", number: "RFI-014", type: "RFI", subject: "Beam-to-column connection detail at grid line C-4 unclear on S-201", ballInCourt: "Structural Engineer", dueDate: "2026-09-02", status: "Open" },
+      { id: "s2", number: "SUB-022", type: "Submittal", subject: "Rooftop HVAC unit shop drawings", ballInCourt: "Architect", dueDate: "2026-09-05", status: "Revise & Resubmit" },
+      { id: "s3", number: "RFI-013", type: "RFI", subject: "Confirm waterproofing membrane at below-grade wall", ballInCourt: "Contractor", dueDate: "2026-08-28", status: "Answered" },
+      { id: "s4", number: "SUB-021", type: "Submittal", subject: "Structural steel mill certificates", ballInCourt: "Architect", dueDate: "2026-08-20", status: "Approved" },
+    ],
+  },
+  punchlist: {
+    items: [
+      { id: "p1", location: "Unit 204 — Kitchen", description: "Touch up paint around window trim", trade: "Painting", assignedTo: "ABC Painting Co.", status: "Open" },
+      { id: "p2", location: "Lobby", description: "Adjust misaligned entry door closer", trade: "Doors & Hardware", assignedTo: "XYZ Door Systems", status: "In Progress" },
+      { id: "p3", location: "Unit 108 — Bathroom", description: "Re-caulk tub surround", trade: "Plumbing", assignedTo: "Reliable Plumbing", status: "Complete" },
+      { id: "p4", location: "Roof", description: "Confirm flashing seal at HVAC curb", trade: "Roofing", assignedTo: "Summit Roofing", status: "Verified" },
     ],
   },
 };
@@ -59,6 +87,32 @@ function showPage(id) {
 function showApp() { showPage("appView"); }
 function showLanding() { showPage("landingView"); }
 
+// ===== New Project modal =====
+let modalCallback = null;
+function promptNewProject(onCreate) {
+  document.getElementById("modalProjectName").value = "";
+  document.getElementById("modalProjectType").value = "Residential";
+  document.getElementById("newProjectModalOverlay").style.display = "flex";
+  document.getElementById("modalProjectName").focus();
+  modalCallback = onCreate;
+}
+function closeModal() {
+  document.getElementById("newProjectModalOverlay").style.display = "none";
+  modalCallback = null;
+}
+document.getElementById("modalCancel").addEventListener("click", closeModal);
+document.getElementById("modalCreate").addEventListener("click", () => {
+  const name = document.getElementById("modalProjectName").value.trim();
+  const type = document.getElementById("modalProjectType").value;
+  if (!name) { alert("Please enter a project name."); return; }
+  const cb = modalCallback;
+  closeModal();
+  if (cb) cb(name, type);
+});
+document.getElementById("modalProjectName").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") { e.preventDefault(); document.getElementById("modalCreate").click(); }
+});
+
 // ===== Projects (localStorage) =====
 function loadAllProjects() {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}"); } catch { return {}; }
@@ -66,15 +120,22 @@ function loadAllProjects() {
 function saveAllProjects(projects) {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(projects)); } catch (e) { console.error("Storage save failed", e); }
 }
-function newProjectState(name) {
-  return { name, charts: { gantt: null, burndown: null, kanban: null, raid: null }, apiHistory: [], chatLog: [], updatedAt: Date.now() };
+function newProjectState(name, type) {
+  return {
+    name,
+    type: type || "",
+    charts: { gantt: null, burndown: null, kanban: null, raid: null, dailylog: null, submittals: null, punchlist: null },
+    apiHistory: [],
+    chatLog: [],
+    updatedAt: Date.now(),
+  };
 }
 function initProjects() {
   let projects = loadAllProjects();
   let active = localStorage.getItem(ACTIVE_KEY);
   if (!active || !projects[active]) {
     const id = "p_" + Date.now();
-    projects[id] = newProjectState("My Project");
+    projects[id] = newProjectState("My Project", "Residential");
     saveAllProjects(projects);
     localStorage.setItem(ACTIVE_KEY, id);
     active = id;
@@ -88,6 +149,9 @@ function loadProjectIntoApp(project) {
   state.burndown = project.charts.burndown;
   state.kanban = project.charts.kanban;
   state.raid = project.charts.raid;
+  state.dailylog = project.charts.dailylog || null;
+  state.submittals = project.charts.submittals || null;
+  state.punchlist = project.charts.punchlist || null;
   history = project.apiHistory ? [...project.apiHistory] : [];
   chatLogData = project.chatLog ? [...project.chatLog] : [];
 
@@ -95,12 +159,21 @@ function loadProjectIntoApp(project) {
   renderBurndown(state.burndown);
   renderKanban(state.kanban);
   renderRaid(state.raid);
+  renderDailyLog(state.dailylog);
+  renderSubmittals(state.submittals);
+  renderPunchlist(state.punchlist);
   rebuildChatLogDom();
+
+  const badge = document.getElementById("projectTypeBadge");
+  if (badge) badge.textContent = project.type || "";
 }
 function persistActiveProject() {
   const projects = loadAllProjects();
   if (!activeProjectId || !projects[activeProjectId]) return;
-  projects[activeProjectId].charts = { gantt: state.gantt, burndown: state.burndown, kanban: state.kanban, raid: state.raid };
+  projects[activeProjectId].charts = {
+    gantt: state.gantt, burndown: state.burndown, kanban: state.kanban, raid: state.raid,
+    dailylog: state.dailylog, submittals: state.submittals, punchlist: state.punchlist,
+  };
   projects[activeProjectId].apiHistory = history;
   projects[activeProjectId].chatLog = chatLogData;
   projects[activeProjectId].updatedAt = Date.now();
@@ -128,9 +201,8 @@ document.getElementById("projectSelect").addEventListener("change", (e) => {
   setTicker("SYSTEM READY · SWITCHED PROJECT");
 });
 document.getElementById("btnNewProject").addEventListener("click", () => {
-  const name = prompt("New project name:", "Untitled project");
-  if (!name) return;
-  createProjectAndOpen(name, "gantt", false);
+  const currentTab = document.querySelector(".tab.active")?.dataset.view || "gantt";
+  promptNewProject((name, type) => createProjectAndOpen(name, type, currentTab, false));
 });
 document.getElementById("btnRenameProject").addEventListener("click", () => {
   const projects = loadAllProjects();
@@ -156,11 +228,11 @@ document.getElementById("btnDeleteProject").addEventListener("click", () => {
   renderProjectSelector();
 });
 
-function createProjectAndOpen(name, tab, goToApp = true) {
+function createProjectAndOpen(name, type, tab, goToApp = true) {
   persistActiveProject();
   const projects = loadAllProjects();
   const id = "p_" + Date.now();
-  projects[id] = newProjectState(name);
+  projects[id] = newProjectState(name, type);
   saveAllProjects(projects);
   activeProjectId = id;
   localStorage.setItem(ACTIVE_KEY, id);
@@ -188,14 +260,19 @@ function switchView(name) {
 // ===== Sample loaders =====
 document.querySelectorAll("[data-sample]").forEach((btn) => {
   btn.addEventListener("click", () => {
-    const kind = btn.dataset.sample;
-    if (kind === "gantt") state.gantt = SAMPLES.gantt, renderGantt(state.gantt);
-    if (kind === "burndown") state.burndown = SAMPLES.burndown, renderBurndown(state.burndown);
-    if (kind === "kanban") state.kanban = SAMPLES.kanban, renderKanban(state.kanban);
-    if (kind === "raid") state.raid = SAMPLES.raid, renderRaid(state.raid);
-    persistActiveProject();
+    loadSample(btn.dataset.sample);
   });
 });
+function loadSample(kind) {
+  if (kind === "gantt") state.gantt = SAMPLES.gantt, renderGantt(state.gantt);
+  if (kind === "burndown") state.burndown = SAMPLES.burndown, renderBurndown(state.burndown);
+  if (kind === "kanban") state.kanban = SAMPLES.kanban, renderKanban(state.kanban);
+  if (kind === "raid") state.raid = SAMPLES.raid, renderRaid(state.raid);
+  if (kind === "dailylog") state.dailylog = SAMPLES.dailylog, renderDailyLog(state.dailylog);
+  if (kind === "submittals") state.submittals = SAMPLES.submittals, renderSubmittals(state.submittals);
+  if (kind === "punchlist") state.punchlist = SAMPLES.punchlist, renderPunchlist(state.punchlist);
+  persistActiveProject();
+}
 
 // ===== Export: PNG via html2canvas =====
 document.querySelectorAll("[data-export-png]").forEach((btn) => {
@@ -238,7 +315,7 @@ function renderGantt(tasks) {
   state.gantt = tasks;
   const wrap = document.getElementById("ganttWrap");
   if (!tasks || !tasks.length) {
-    wrap.innerHTML = `<div class="empty-state" id="ganttEmpty"><p>No timeline yet.</p><button class="btn-ghost" data-sample="gantt">Load a sample plan</button></div>`;
+    wrap.innerHTML = `<div class="empty-state" id="ganttEmpty"><p>No schedule yet.</p><button class="btn-ghost" data-sample="gantt">Load a sample schedule</button></div>`;
     rebindSampleButton(wrap);
     return;
   }
@@ -302,7 +379,7 @@ function renderBurndown(data) {
     data: {
       labels,
       datasets: [
-        { label: "Ideal", data: ideal, borderColor: "#6B6B72", borderDash: [5, 4], pointRadius: 0, tension: 0 },
+        { label: "Planned", data: ideal, borderColor: "#6B6B72", borderDash: [5, 4], pointRadius: 0, tension: 0 },
         { label: "Actual", data: actual, borderColor: "#F2B705", backgroundColor: "rgba(242,183,5,0.12)", fill: true, pointRadius: 3, tension: 0.25 },
       ],
     },
@@ -311,7 +388,7 @@ function renderBurndown(data) {
       plugins: { legend: { labels: { color: "#A6A6AC", font: { family: "IBM Plex Mono", size: 11 } } } },
       scales: {
         x: { ticks: { color: "#6B6B72" }, grid: { color: "rgba(255,255,255,0.05)" } },
-        y: { ticks: { color: "#6B6B72" }, grid: { color: "rgba(255,255,255,0.05)" }, title: { display: true, text: "Points remaining", color: "#A6A6AC" } },
+        y: { ticks: { color: "#6B6B72" }, grid: { color: "rgba(255,255,255,0.05)" }, title: { display: true, text: "Work remaining", color: "#A6A6AC" } },
       },
     },
   });
@@ -322,7 +399,7 @@ function renderKanban(data) {
   state.kanban = data;
   const wrap = document.getElementById("kanbanWrap");
   if (!data || !data.columns || !data.columns.length) {
-    wrap.innerHTML = `<div class="empty-state" id="kanbanEmpty"><p>No board yet.</p><button class="btn-ghost" data-sample="kanban">Load a sample board</button></div>`;
+    wrap.innerHTML = `<div class="empty-state" id="kanbanEmpty"><p>No task board yet.</p><button class="btn-ghost" data-sample="kanban">Load a sample board</button></div>`;
     rebindSampleButton(wrap);
     return;
   }
@@ -403,18 +480,97 @@ function renderRaid(data) {
       <tbody>${rows}</tbody>
     </table>`;
 }
-function slug(s) { return String(s || "").toLowerCase().replace(/\s+/g, "-"); }
+
+// ===== Daily Log rendering =====
+function renderDailyLog(data) {
+  state.dailylog = data;
+  const wrap = document.getElementById("dailylogWrap");
+  if (!data || !data.entries || !data.entries.length) {
+    wrap.innerHTML = `<div class="empty-state" id="dailylogEmpty"><p>No site reports yet.</p><button class="btn-ghost" data-sample="dailylog">Load sample entries</button></div>`;
+    rebindSampleButton(wrap);
+    return;
+  }
+  const rows = [...data.entries]
+    .sort((a, b) => (a.date < b.date ? 1 : -1))
+    .map(
+      (e) => `
+      <tr>
+        <td>${escapeHtml(e.date)}</td>
+        <td>${escapeHtml(e.weather || "—")}</td>
+        <td>${escapeHtml(e.crew || "—")}</td>
+        <td>${escapeHtml(e.workPerformed || "—")}</td>
+        <td>${escapeHtml(e.delays || "None")}</td>
+      </tr>`
+    )
+    .join("");
+  wrap.innerHTML = `
+    <table class="log-table">
+      <thead><tr><th>Date</th><th>Weather</th><th>Crew</th><th>Work Performed</th><th>Delays</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+// ===== Submittals & RFI rendering =====
+function renderSubmittals(data) {
+  state.submittals = data;
+  const wrap = document.getElementById("submittalsWrap");
+  if (!data || !data.items || !data.items.length) {
+    wrap.innerHTML = `<div class="empty-state" id="submittalsEmpty"><p>No submittals or RFIs logged yet.</p><button class="btn-ghost" data-sample="submittals">Load a sample log</button></div>`;
+    rebindSampleButton(wrap);
+    return;
+  }
+  const rows = data.items
+    .map(
+      (item) => `
+      <tr>
+        <td><span class="log-badge type-${slug(item.type)}">${escapeHtml(item.number)}</span></td>
+        <td>${escapeHtml(item.subject)}</td>
+        <td>${escapeHtml(item.ballInCourt || "—")}</td>
+        <td>${escapeHtml(item.dueDate || "—")}</td>
+        <td><span class="log-badge status-${slug(item.status)}">${escapeHtml(item.status || "—")}</span></td>
+      </tr>`
+    )
+    .join("");
+  wrap.innerHTML = `
+    <table class="log-table">
+      <thead><tr><th>Number</th><th>Subject</th><th>Ball-in-Court</th><th>Due</th><th>Status</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+// ===== Punch List rendering =====
+function renderPunchlist(data) {
+  state.punchlist = data;
+  const wrap = document.getElementById("punchlistWrap");
+  if (!data || !data.items || !data.items.length) {
+    wrap.innerHTML = `<div class="empty-state" id="punchlistEmpty"><p>No punch list yet.</p><button class="btn-ghost" data-sample="punchlist">Load a sample list</button></div>`;
+    rebindSampleButton(wrap);
+    return;
+  }
+  const rows = data.items
+    .map(
+      (item) => `
+      <tr>
+        <td>${escapeHtml(item.location)}</td>
+        <td>${escapeHtml(item.description)}</td>
+        <td>${escapeHtml(item.trade || "—")}</td>
+        <td>${escapeHtml(item.assignedTo || "—")}</td>
+        <td><span class="log-badge status-${slug(item.status)}">${escapeHtml(item.status || "—")}</span></td>
+      </tr>`
+    )
+    .join("");
+  wrap.innerHTML = `
+    <table class="log-table">
+      <thead><tr><th>Location</th><th>Description</th><th>Trade</th><th>Assigned To</th><th>Status</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+function slug(s) { return String(s || "").toLowerCase().replace(/&/g, "and").replace(/\s+/g, "-"); }
 
 function rebindSampleButton(container) {
   container.querySelectorAll("[data-sample]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const kind = btn.dataset.sample;
-      if (kind === "gantt") renderGantt(SAMPLES.gantt);
-      if (kind === "burndown") renderBurndown(SAMPLES.burndown);
-      if (kind === "kanban") renderKanban(SAMPLES.kanban);
-      if (kind === "raid") renderRaid(SAMPLES.raid);
-      persistActiveProject();
-    });
+    btn.addEventListener("click", () => loadSample(btn.dataset.sample));
   });
 }
 
@@ -442,10 +598,13 @@ function setTicker(text, live = false) {
 
 // ===================== BROWSE PAGES =====================
 const CHART_META = {
-  gantt: { label: "Gantt Timelines", sub: "All projects with a Gantt chart", empty: "No Gantt charts yet." },
-  kanban: { label: "Kanban Boards", sub: "All projects with a Kanban board", empty: "No Kanban boards yet." },
-  burndown: { label: "Sprint Burndowns", sub: "All projects with a burndown chart", empty: "No burndown charts yet." },
+  gantt: { label: "Project Schedules", sub: "All projects with a schedule", empty: "No schedules yet." },
+  kanban: { label: "Site Task Boards", sub: "All projects with a site task board", empty: "No task boards yet." },
+  burndown: { label: "Schedule Burndowns", sub: "All projects with a burndown chart", empty: "No burndown charts yet." },
   raid: { label: "RAID Logs", sub: "All projects with a RAID log", empty: "No RAID logs yet." },
+  dailylog: { label: "Daily Logs", sub: "All projects with site reports", empty: "No daily logs yet." },
+  submittals: { label: "Submittals & RFIs", sub: "All projects with submittals or RFIs logged", empty: "No submittals or RFIs yet." },
+  punchlist: { label: "Punch Lists", sub: "All projects with a punch list", empty: "No punch lists yet." },
 };
 let currentBrowseType = "gantt";
 
@@ -457,6 +616,9 @@ function chartStat(type, chart) {
   }
   if (type === "burndown") return `${chart.days.length}-day sprint`;
   if (type === "raid") return `${chart.items.length} item${chart.items.length === 1 ? "" : "s"}`;
+  if (type === "dailylog") return `${chart.entries.length} entr${chart.entries.length === 1 ? "y" : "ies"}`;
+  if (type === "submittals") return `${chart.items.length} item${chart.items.length === 1 ? "" : "s"}`;
+  if (type === "punchlist") return `${chart.items.length} item${chart.items.length === 1 ? "" : "s"}`;
   return "";
 }
 function hasChart(type, chart) {
@@ -465,6 +627,9 @@ function hasChart(type, chart) {
   if (type === "kanban") return Array.isArray(chart.columns) && chart.columns.length > 0;
   if (type === "burndown") return Array.isArray(chart.days) && chart.days.length > 0;
   if (type === "raid") return Array.isArray(chart.items) && chart.items.length > 0;
+  if (type === "dailylog") return Array.isArray(chart.entries) && chart.entries.length > 0;
+  if (type === "submittals") return Array.isArray(chart.items) && chart.items.length > 0;
+  if (type === "punchlist") return Array.isArray(chart.items) && chart.items.length > 0;
   return false;
 }
 
@@ -490,9 +655,7 @@ function renderBrowseGrid(type) {
         <button class="btn-primary" id="browseEmptyAdd"><span>＋</span> Add New Project</button>
       </div>`;
     document.getElementById("browseEmptyAdd").addEventListener("click", () => {
-      const name = prompt("Name your new project:", "Untitled project");
-      if (!name) return;
-      createProjectAndOpen(name, type, true);
+      promptNewProject((name, ptype) => createProjectAndOpen(name, ptype, type, true));
     });
     return;
   }
@@ -502,7 +665,7 @@ function renderBrowseGrid(type) {
       ([id, p]) => `
       <div class="browse-card" data-project-id="${id}">
         <div class="browse-card-name">${escapeHtml(p.name)}</div>
-        <div class="browse-card-meta">Updated ${timeAgo(p.updatedAt)}</div>
+        <div class="browse-card-meta">${escapeHtml(p.type || "")}${p.type ? " · " : ""}Updated ${timeAgo(p.updatedAt)}</div>
         <div class="browse-card-stat">${chartStat(type, p.charts[type])}</div>
         <div class="browse-card-open">Open →</div>
       </div>`
@@ -519,9 +682,7 @@ function renderBrowseGrid(type) {
 }
 
 document.getElementById("browseAddNew").addEventListener("click", () => {
-  const name = prompt("Name your new project:", "Untitled project");
-  if (!name) return;
-  createProjectAndOpen(name, currentBrowseType, true);
+  promptNewProject((name, type) => createProjectAndOpen(name, type, currentBrowseType, true));
 });
 document.querySelectorAll('[data-browse]').forEach((card) => {
   card.addEventListener("click", () => openBrowse(card.dataset.browse));
@@ -558,7 +719,7 @@ function renderChatHistoryList() {
   });
 }
 document.getElementById("btnNewChat").addEventListener("click", () => {
-  createProjectAndOpen("New chat", "gantt", false);
+  createProjectAndOpen("New chat", "", "gantt", false);
   renderChatHistoryList();
 });
 document.getElementById("backToLandingFromChat").addEventListener("click", (e) => { e.preventDefault(); showLanding(); });
@@ -588,7 +749,7 @@ function renderChatBubble(container, kind, text, viewTab) {
   if (kind === "note" && viewTab) {
     const link = document.createElement("span");
     link.className = "chat-view-link";
-    link.textContent = `View in ${viewTab[0].toUpperCase()}${viewTab.slice(1)} →`;
+    link.textContent = `View in ${VIEW_LABELS[viewTab] || viewTab} →`;
     link.addEventListener("click", () => { showApp(); switchView(viewTab); });
     div.appendChild(document.createElement("br"));
     div.appendChild(link);
@@ -596,6 +757,10 @@ function renderChatBubble(container, kind, text, viewTab) {
   container.appendChild(div);
   container.scrollTop = container.scrollHeight;
 }
+const VIEW_LABELS = {
+  gantt: "Schedule", kanban: "Site Tasks", burndown: "Progress", raid: "RAID Log",
+  dailylog: "Daily Log", submittals: "Submittals/RFI", punchlist: "Punch List",
+};
 function rebuildChatLogDom() {
   CHAT_MOUNTS.forEach((m) => { const el = document.getElementById(m.log); if (el) el.innerHTML = ""; });
   if (!chatLogData.length) {
@@ -603,7 +768,7 @@ function rebuildChatLogDom() {
       renderChatBubble(
         document.getElementById(m.log),
         "assistant",
-        "Hi — I'm your project management assistant. Ask me anything about scheduling, risk, agile ceremonies, or estimation, or ask me to draft or edit a Gantt chart, burndown, kanban board, or RAID log."
+        "Hi — I'm your construction project management assistant. Ask me anything about scheduling, RFIs, change orders, safety, or subcontractor coordination, or ask me to draft or edit your schedule, site task board, burndown, RAID log, daily log, submittals/RFI log, or punch list."
       )
     );
     return;
@@ -626,8 +791,8 @@ function handleAssistantReply(reply) {
   if (action && action.action) {
     if (action.action === "gantt" && action.data) {
       renderGantt(action.data);
-      addNote(`✓ Gantt chart updated (${action.data.length} tasks)`, "gantt");
-      setTicker(`DRAFTED GANTT · ${action.data.length} TASKS`, true);
+      addNote(`✓ Schedule updated (${action.data.length} tasks)`, "gantt");
+      setTicker(`DRAFTED SCHEDULE · ${action.data.length} TASKS`, true);
     } else if (action.action === "burndown" && action.data) {
       renderBurndown(action.data);
       addNote(`✓ Burndown chart updated`, "burndown");
@@ -635,13 +800,28 @@ function handleAssistantReply(reply) {
     } else if (action.action === "kanban" && action.data) {
       renderKanban(action.data);
       const total = action.data.columns.reduce((n, c) => n + c.cards.length, 0);
-      addNote(`✓ Kanban board updated (${total} cards)`, "kanban");
-      setTicker(`DRAFTED KANBAN · ${total} CARDS`, true);
+      addNote(`✓ Site task board updated (${total} cards)`, "kanban");
+      setTicker(`DRAFTED TASK BOARD · ${total} CARDS`, true);
     } else if (action.action === "raid" && action.data) {
       renderRaid(action.data);
       const total = (action.data.items || []).length;
       addNote(`✓ RAID log updated (${total} items)`, "raid");
       setTicker(`DRAFTED RAID LOG · ${total} ITEMS`, true);
+    } else if (action.action === "dailylog" && action.data) {
+      renderDailyLog(action.data);
+      const total = (action.data.entries || []).length;
+      addNote(`✓ Daily log updated (${total} entries)`, "dailylog");
+      setTicker(`DRAFTED DAILY LOG · ${total} ENTRIES`, true);
+    } else if (action.action === "submittals" && action.data) {
+      renderSubmittals(action.data);
+      const total = (action.data.items || []).length;
+      addNote(`✓ Submittals/RFI log updated (${total} items)`, "submittals");
+      setTicker(`DRAFTED SUBMITTALS LOG · ${total} ITEMS`, true);
+    } else if (action.action === "punchlist" && action.data) {
+      renderPunchlist(action.data);
+      const total = (action.data.items || []).length;
+      addNote(`✓ Punch list updated (${total} items)`, "punchlist");
+      setTicker(`DRAFTED PUNCH LIST · ${total} ITEMS`, true);
     }
   } else {
     setTicker("SYSTEM READY · ASK THE ASSISTANT TO PLAN, TRACK, OR CHART YOUR PROJECT");
@@ -656,10 +836,12 @@ async function sendChatMessage(text) {
 
   try {
     const trimmedHistory = history.slice(-MAX_API_HISTORY);
+    const projects = loadAllProjects();
+    const projectType = (projects[activeProjectId] && projects[activeProjectId].type) || "";
     const res = await fetch("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages: trimmedHistory, charts: state }),
+      body: JSON.stringify({ messages: trimmedHistory, charts: state, projectType }),
     });
     const data = await res.json();
 
@@ -703,9 +885,7 @@ CHAT_MOUNTS.forEach((m) => {
 
 // ===== Landing page misc =====
 document.getElementById("btnAddProject").addEventListener("click", () => {
-  const name = prompt("Name your new project:", "Untitled project");
-  if (!name) return;
-  createProjectAndOpen(name, "gantt", true);
+  promptNewProject((name, type) => createProjectAndOpen(name, type, "gantt", true));
 });
 document.getElementById("btnViewProjects").addEventListener("click", () => showApp());
 document.getElementById("navDashboard").addEventListener("click", (e) => { e.preventDefault(); showApp(); });
