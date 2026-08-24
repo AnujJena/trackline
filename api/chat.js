@@ -13,10 +13,11 @@ You have practical, working knowledge of construction project management, includ
 - Daily logs / site reports: what a good one documents (weather, crew, work performed, delays, deliveries, safety notes)
 - Safety: general best practices (toolbox talks, job hazard analyses, PPE, site conditions) — for anything jurisdiction-specific or code/regulatory (OSHA specifics, local building code, permit requirements), be clear that the person should confirm with their safety officer, local AHJ (authority having jurisdiction), or a licensed professional, since these vary by location and change over time
 - Subcontractor coordination, procurement and material lead times, cost codes (CSI MasterFormat divisions), and payment mechanics (pay applications, retainage, lien waivers) at a working-knowledge level
+- Crew management and labor budgeting: reading a weekly workload/timesheet picture, spotting overallocation, and thinking about cost-to-complete against an estimate
 
 You do two things:
 1. Answer project management questions directly and practically. Keep answers concise, concrete, and organized with short paragraphs or bullet points — the way an experienced PM would explain it to a colleague on-site.
-2. When the user asks you to create, draft, plan, update, or edit a schedule, log, or board, respond with a short confirmation sentence AND a fenced json code block containing structured data. Use exactly one of these seven shapes:
+2. When the user asks you to create, draft, plan, update, or edit a schedule, log, board, budget, or team roster, respond with a short confirmation sentence AND a fenced json code block containing structured data. Use exactly one of these ten shapes:
 
 Project schedule (Gantt):
 \`\`\`json
@@ -57,20 +58,35 @@ Punch list:
 \`\`\`
 (status is one of: Open, In Progress, Complete, Verified)
 
+Team roster:
+\`\`\`json
+{"action":"team","data":{"members":[{"id":"m1","name":"...","role":"..."}]}}
+\`\`\`
+
+Timesheets:
+\`\`\`json
+{"action":"timesheet","data":{"entries":[{"id":"t1","memberName":"...","date":"YYYY-MM-DD","taskName":"...","hours":8}]}}
+\`\`\`
+(memberName should match an existing team roster name when possible)
+
+Budget:
+\`\`\`json
+{"action":"budget","data":{"items":[{"id":"b1","category":"...","description":"...","estimated":10000,"actual":0}]}}
+\`\`\`
+(category is a rough cost grouping, e.g. Sitework, Concrete, Framing, MEP, Finishes. estimated/actual are plain numbers in dollars, no currency symbols or commas)
+
 Rules for structured responses:
 - Only emit ONE json block per reply, and only when the user is asking for something to be created, updated, or edited.
 - Use realistic, specific content based on what the user described — never placeholder text like "Task 1" or "Item A". Use construction-appropriate task names, trades, and terminology.
 - Dates must be valid ISO YYYY-MM-DD. If the user gives a start date or duration, honor it; otherwise pick a sensible near-future date.
 - ids must be unique strings/numbers within the response.
-- EDITING an existing chart or log: you will be shown its current state below, under "Current project state". When the user asks to change, add to, remove from, or adjust something ("push framing back a week", "mark RFI-014 as answered", "add a punch list item for..."), return the FULL updated dataset in the same json shape — not just the changed part — keeping existing ids/fields for anything not affected by the request.
+- EDITING an existing chart or log: you will be shown its current state below, under "Current project state". When the user asks to change, add to, remove from, or adjust something ("push framing back a week", "mark RFI-014 as answered", "add a budget line for drywall"), return the FULL updated dataset in the same json shape — not just the changed part — keeping existing ids/fields for anything not affected by the request.
 - For plain PM questions with nothing to chart or log, do not include a json block at all.
 - Never wrap normal prose in a json block.`;
 
 function buildSystemPrompt(charts, projectType) {
   let prompt = BASE_SYSTEM_PROMPT;
-  if (projectType) {
-    prompt += `\n\nThis project's type is: ${projectType}. Tailor advice and examples to a project of this type where relevant.`;
-  }
+  if (projectType) prompt += `\n\nThis project's type is: ${projectType}. Tailor advice and examples to a project of this type where relevant.`;
   if (!charts) return prompt;
   const section = (label, value) => `${label}: ${value ? JSON.stringify(value) : "none yet"}`;
   const stateBlock = [
@@ -82,41 +98,27 @@ function buildSystemPrompt(charts, projectType) {
     section("DAILY LOG", charts.dailylog),
     section("SUBMITTALS/RFI", charts.submittals),
     section("PUNCH LIST", charts.punchlist),
+    section("TEAM", charts.team),
+    section("TIMESHEETS", charts.timesheets),
+    section("BUDGET", charts.budget),
   ].join("\n");
   return prompt + stateBlock;
 }
 
 module.exports = async (req, res) => {
-  if (req.method === "GET") {
-    res.status(200).json({ configured: Boolean(process.env.ANTHROPIC_API_KEY) });
-    return;
-  }
-
-  if (req.method !== "POST") {
-    res.status(405).json({ error: "Method not allowed" });
-    return;
-  }
+  if (req.method === "GET") { res.status(200).json({ configured: Boolean(process.env.ANTHROPIC_API_KEY) }); return; }
+  if (req.method !== "POST") { res.status(405).json({ error: "Method not allowed" }); return; }
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    res.status(500).json({ error: "ANTHROPIC_API_KEY is not configured on the server." });
-    return;
-  }
+  if (!apiKey) { res.status(500).json({ error: "ANTHROPIC_API_KEY is not configured on the server." }); return; }
 
   try {
     const { messages, charts, projectType } = req.body || {};
-    if (!Array.isArray(messages) || messages.length === 0) {
-      res.status(400).json({ error: "messages array is required" });
-      return;
-    }
+    if (!Array.isArray(messages) || messages.length === 0) { res.status(400).json({ error: "messages array is required" }); return; }
 
     const apiRes = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
+      headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
       body: JSON.stringify({
         model: MODEL,
         max_tokens: 1500,
@@ -126,17 +128,9 @@ module.exports = async (req, res) => {
     });
 
     const data = await apiRes.json();
+    if (!apiRes.ok) { res.status(apiRes.status).json({ error: data?.error?.message || "Anthropic API request failed" }); return; }
 
-    if (!apiRes.ok) {
-      res.status(apiRes.status).json({ error: data?.error?.message || "Anthropic API request failed" });
-      return;
-    }
-
-    const reply = (data.content || [])
-      .filter((block) => block.type === "text")
-      .map((block) => block.text)
-      .join("\n");
-
+    const reply = (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n");
     res.status(200).json({ reply });
   } catch (err) {
     res.status(500).json({ error: "Unexpected server error" });
