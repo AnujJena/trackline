@@ -21,6 +21,7 @@
     </div>
     <nav class="landing-links">
       <a href="#" id="navDashboard">Dashboard</a>
+      <a href="#" id="navPortfolio">Portfolio</a>
       <a href="#" id="navHelp">Help</a>
       <span class="profile-dot" title="No account needed — everything is saved in this browser only">◑</span>
     </nav>
@@ -37,12 +38,14 @@
       <li>"Log today's site report — clear, 68°F, 14 crew"</li>
       <li>"Open an RFI about the beam detail on sheet S-201"</li>
       <li>"Add a punch list item for Unit 204"</li>
+      <li>"Add a budget line for concrete — estimated $45,000"</li>
+      <li>"Add John Smith as site super to the team"</li>
     </ul>
   </div>
 
   <section class="hero">
     <h1>Welcome to <span class="hero-accent">Trackline</span></h1>
-    <p class="hero-sub">The AI project console built for construction — schedule the job, log the site, and get a project manager's advice whenever you need it.</p>
+    <p class="hero-sub">The AI project console built for construction — schedule the job, log the site, track budget and crew, and get a project manager's advice whenever you need it.</p>
     <div class="hero-actions">
       <button class="btn-primary" id="btnAddProject"><span>＋</span> Add New Project</button>
       <button class="btn-secondary" id="btnViewProjects">View Existing Projects</button>
@@ -124,20 +127,50 @@
 
     </div>
 
+    <p class="feature-kicker">RUN THE WHOLE JOB</p>
+
+    <div class="feature-grid-secondary">
+
+      <div class="feature-card" id="cardTeam" role="button" tabindex="0">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24" fill="none"><circle cx="9" cy="8" r="3" stroke="currentColor" stroke-width="1.6"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6" stroke="currentColor" stroke-width="1.6"/><circle cx="17.5" cy="9" r="2.5" stroke="currentColor" stroke-width="1.6"/><path d="M15 20c.2-2.6 2-4.7 4.5-5" stroke="currentColor" stroke-width="1.6"/></svg>
+        </div>
+        <h3>Team &amp; Timesheets</h3>
+        <p class="feature-card-sub">Crew roster, hours, weekly workload</p>
+      </div>
+
+      <div class="feature-card" id="cardBudget" role="button" tabindex="0">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/><path d="M12 7v10M9.5 9.5c0-1.4 1.1-2 2.5-2s2.5.7 2.5 2c0 3-5 1.5-5 4.5 0 1.3 1.1 2 2.5 2s2.5-.7 2.5-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </div>
+        <h3>Budget &amp; Cost</h3>
+        <p class="feature-card-sub">Estimated vs. actual, by line item</p>
+      </div>
+
+      <div class="feature-card" id="cardCalendar" role="button" tabindex="0">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24" fill="none"><rect x="4" y="5" width="16" height="15" rx="1.5" stroke="currentColor" stroke-width="1.6"/><path d="M4 10h16M8 3v4M16 3v4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        </div>
+        <h3>Calendar</h3>
+        <p class="feature-card-sub">Every date, on one job calendar</p>
+      </div>
+
+    </div>
+
     <div class="feature-featured" id="cardAiAssistant" role="button" tabindex="0">
       <div class="feature-icon feature-icon-lg">
         <svg viewBox="0 0 24 24" fill="none"><path d="M4 5h16v11H8l-4 4V5z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
       </div>
       <div class="feature-featured-text">
         <h3>AI Project Manager</h3>
-        <p>Ask about scheduling, RFIs, change orders, safety, or subcontractor coordination — or have it draft and edit any log or chart for you. Every conversation is saved so you can pick up where you left off.</p>
+        <p>Ask about scheduling, RFIs, change orders, safety, budget, or crew coordination — or have it draft and edit any log, chart, or line item for you. Every conversation is saved so you can pick up where you left off.</p>
       </div>
       <span class="feature-featured-arrow">→</span>
     </div>
   </section>
 
   <footer class="landing-footer">
-    <p>Trackline is a lightweight, free-to-run construction project console — your data stays in this browser.</p>
+    <p>Trackline is a lightweight, free-to-run construction project console — every feature is unlocked, your data stays in this browser.</p>
   </footer>
 
 </div>
@@ -161,6 +194,28 @@
       <button class="btn-primary" id="browseAddNew"><span>＋</span> New Project</button>
     </div>
     <div class="browse-grid" id="browseGrid"></div>
+  </div>
+</div>
+
+<!-- ===================== PORTFOLIO (all projects overview) ===================== -->
+<div id="portfolioView" style="display:none;">
+  <header class="sub-header">
+    <div class="brand" id="brandHomePortfolio" role="button" tabindex="0" title="Back to home">
+      <span class="brand-mark">⚙</span>
+      <span class="brand-name">TRACKLINE</span>
+    </div>
+    <a href="#" id="backToLandingFromPortfolio" class="back-link">← Back to Home</a>
+  </header>
+  <div class="hazard-strip"></div>
+  <div class="browse-wrap">
+    <div class="browse-head">
+      <div>
+        <h1>Portfolio</h1>
+        <p class="view-sub">Every project at a glance — schedule, budget, and open items.</p>
+      </div>
+      <button class="btn-primary" id="portfolioAddNew"><span>＋</span> New Project</button>
+    </div>
+    <div class="portfolio-grid" id="portfolioGrid"></div>
   </div>
 </div>
 
@@ -198,13 +253,17 @@
     <span class="brand-name">TRACKLINE</span>
   </div>
   <nav class="tabs" role="tablist">
-    <button class="tab active" data-view="gantt" role="tab" aria-selected="true">Schedule</button>
+    <button class="tab active" data-view="dashboard" role="tab" aria-selected="true">Dashboard</button>
+    <button class="tab" data-view="gantt" role="tab" aria-selected="false">Schedule</button>
     <button class="tab" data-view="kanban" role="tab" aria-selected="false">Site Tasks</button>
     <button class="tab" data-view="burndown" role="tab" aria-selected="false">Progress</button>
     <button class="tab" data-view="raid" role="tab" aria-selected="false">RAID Log</button>
     <button class="tab" data-view="dailylog" role="tab" aria-selected="false">Daily Log</button>
     <button class="tab" data-view="submittals" role="tab" aria-selected="false">Submittals/RFI</button>
     <button class="tab" data-view="punchlist" role="tab" aria-selected="false">Punch List</button>
+    <button class="tab" data-view="team" role="tab" aria-selected="false">Team</button>
+    <button class="tab" data-view="budget" role="tab" aria-selected="false">Budget</button>
+    <button class="tab" data-view="calendar" role="tab" aria-selected="false">Calendar</button>
   </nav>
   <div class="status-chip" id="apiStatus">
     <span class="dot" id="apiDot"></span>
@@ -230,7 +289,21 @@
 
   <section class="canvas">
 
-    <div class="view active" id="view-gantt">
+    <div class="view active" id="view-dashboard">
+      <div class="view-head">
+        <div>
+          <h1>Project Dashboard</h1>
+          <p class="view-sub">A live snapshot of this project — schedule, budget, open items, and crew workload.</p>
+        </div>
+        <div class="view-actions">
+          <button class="btn-ghost" data-export-png="dashboardWrap" data-export-name="project-dashboard">Export PNG</button>
+          <button class="btn-ghost" data-export-print>Export PDF</button>
+        </div>
+      </div>
+      <div class="dashboard-wrap" id="dashboardWrap"></div>
+    </div>
+
+    <div class="view" id="view-gantt">
       <div class="view-head">
         <div>
           <h1>Project Schedule</h1>
@@ -372,6 +445,58 @@
       </div>
     </div>
 
+    <div class="view" id="view-team">
+      <div class="view-head">
+        <div>
+          <h1>Team &amp; Timesheets</h1>
+          <p class="view-sub">Ask the assistant, or manage your crew and hours manually.</p>
+        </div>
+        <div class="view-actions">
+          <button class="btn-ghost" data-add-type="teammember">＋ Add Member</button>
+          <button class="btn-ghost" data-add-type="timesheet">＋ Log Hours</button>
+          <button class="btn-ghost" data-export-png="teamWrap" data-export-name="team-timesheets">Export PNG</button>
+          <button class="btn-ghost" data-export-print>Export PDF</button>
+        </div>
+      </div>
+      <div class="team-wrap" id="teamWrap"></div>
+    </div>
+
+    <div class="view" id="view-budget">
+      <div class="view-head">
+        <div>
+          <h1>Budget &amp; Cost</h1>
+          <p class="view-sub">Ask the assistant, or add a budget line item manually.</p>
+        </div>
+        <div class="view-actions">
+          <button class="btn-ghost" data-add-type="budget">＋ Add Line Item</button>
+          <button class="btn-ghost" data-export-png="budgetWrap" data-export-name="budget">Export PNG</button>
+          <button class="btn-ghost" data-export-print>Export PDF</button>
+        </div>
+      </div>
+      <div class="budget-wrap" id="budgetWrap">
+        <div class="empty-state" id="budgetEmpty">
+          <p>No budget line items yet.</p>
+          <button class="btn-ghost" data-sample="budget">Load a sample budget</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="view" id="view-calendar">
+      <div class="view-head">
+        <div>
+          <h1>Calendar</h1>
+          <p class="view-sub">Every dated item across your schedule, daily log, submittals, and budget — in one place.</p>
+        </div>
+        <div class="view-actions">
+          <button class="btn-ghost" id="calPrev">← Prev</button>
+          <button class="btn-ghost" id="calToday">Today</button>
+          <button class="btn-ghost" id="calNext">Next →</button>
+          <button class="btn-ghost" data-export-print>Export PDF</button>
+        </div>
+      </div>
+      <div class="calendar-wrap" id="calendarWrap"></div>
+    </div>
+
   </section>
 
   <aside class="copilot">
@@ -409,7 +534,7 @@
   </div>
 </div>
 
-<!-- ===================== ADD ITEM MODAL (manual entry, all 7 modules) ===================== -->
+<!-- ===================== ADD ITEM MODAL (manual entry, all modules) ===================== -->
 <div class="modal-overlay" id="addItemModalOverlay" style="display:none;">
   <div class="modal-box">
     <h2 id="addItemModalTitle">Add Item</h2>

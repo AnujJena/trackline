@@ -1,8 +1,8 @@
 # Trackline — AI Construction Project Console
 
-A project console built specifically for construction project management:
+A project console built specifically for construction project management. Everything below is fully unlocked — there's no paid tier or locked feature, since this is your own free, self-hosted build.
 
-- **AI Project Manager (chat)** — answers construction PM questions (scheduling, RFIs, change orders, safety, subcontractor coordination) and can draft or edit any log/chart from a request. Has its own dedicated page with a "previous chats" sidebar, plus an embedded copilot inside the working views.
+**Core field modules** — each can be filled in manually (a "+ Add" button opens a form), by the AI assistant, or from a sample:
 - **Project Schedule** — Gantt-style task timeline
 - **Site Task Board** — Kanban board for day-to-day/week-to-week site tasks
 - **Schedule Burndown** — planned vs. actual progress over the job
@@ -11,13 +11,20 @@ A project console built specifically for construction project management:
 - **Submittals & RFIs** — number, subject, ball-in-court, due date, status
 - **Punch List** — by location, trade, assigned sub, and status
 
-Every module can be filled in **manually** — each page has a "+ Add" button that opens a form (no AI required) — or via the assistant, or by loading a sample. Every row/card has a small "×" to delete it.
+**Run-the-job modules:**
+- **Dashboard** — a live, computed snapshot of the project: schedule % complete, budget variance, open RAID/RFI/punch counts, site task counts, and crew workload. No setup — it reads whatever's already in the other modules.
+- **Team & Timesheets** — crew roster, logged hours per task/day, and a weekly workload view (hours logged in the last 7 days per person).
+- **Budget & Cost** — line items with estimated vs. actual cost and running variance.
+- **Calendar** — every dated item (schedule start/end dates, daily log entries, submittal due dates) plotted on one month view.
+- **Portfolio** — an all-projects overview (reachable from the landing page nav) showing schedule %, budget variance, and open-item counts across every project at once.
+
+Every row/card has a small "×" to delete it. Ask the assistant to edit anything already on screen (e.g. *"push framing back a week"*, *"mark RFI-014 as answered"*, *"add a budget line for drywall"*) — it's shown the current state each time, so edits build on what's there.
 
 Every project has a **type** (Residential / Commercial / Infrastructure) picked when you create it, which the assistant uses to tailor its advice.
 
-Ask the assistant to edit anything already on screen (e.g. *"push framing back a week"*, *"mark RFI-014 as answered"*, *"add a punch list item for Unit 204"*) — it's shown the current state of your schedule/logs each time, so edits build on what's there.
+The AI assistant is reachable two ways: an embedded copilot inside the working views, and a dedicated full-page chat (from the landing page's "AI Project Manager" card) with a sidebar listing your other projects as "previous chats."
 
-Everything runs as static files plus one serverless function (`/api/chat.js`), so it fits Vercel's free Hobby tier with no database and no build step. Projects and chat history are saved in your browser's local storage — private to that browser/device.
+Everything runs as static files plus one serverless function (`/api/chat.js`), so it fits Vercel's free Hobby tier with no database and no build step. Projects, budgets, timesheets, and chat history are all saved in your browser's local storage — private to that browser/device.
 
 ---
 

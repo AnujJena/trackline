@@ -1,9 +1,7 @@
 {
   "name": "trackline",
   "version": "1.0.0",
-  "description": "AI project management console — Gantt, burndown, and kanban charts with an LLM-backed PM assistant.",
+  "description": "AI construction project management console — schedules, logs, budget, team, and an LLM-backed PM assistant.",
   "private": true,
-  "scripts": {
-    "dev": "vercel dev"
-  }
+  "scripts": { "dev": "vercel dev" }
 }
