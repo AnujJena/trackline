@@ -821,9 +821,9 @@ function renderBudget(data) {
   const rows = data.items.map((item) => {
     const variance = item.actual - item.estimated;
     const varClass = item.actual === 0 ? "" : variance > 0 ? "cost-over" : "cost-under";
-    const varText = item.actual === 0 ? "—" : `${variance > 0 ? "+" : ""}$${variance.toLocaleString()}`;
+    const varText = item.actual === 0 ? "—" : `${variance > 0 ? "+" : ""}$${variance.toLocaleString("en-US")}`;
     return `<tr><td>${escapeHtml(item.category || "—")}</td><td>${escapeHtml(item.description)}</td>
-      <td>$${Number(item.estimated).toLocaleString()}</td><td>${item.actual ? "$" + Number(item.actual).toLocaleString() : "—"}</td>
+      <td>$${Number(item.estimated).toLocaleString("en-US")}</td><td>${item.actual ? "$" + Number(item.actual).toLocaleString("en-US") : "—"}</td>
       <td class="${varClass}">${varText}</td>
       <td class="col-delete"><button class="row-delete-btn" data-del="budget:${item.id}" title="Delete item">×</button></td></tr>`;
   }).join("");
@@ -834,8 +834,8 @@ function renderBudget(data) {
     <table class="log-table">
       <thead><tr><th>Category</th><th>Description</th><th>Estimated</th><th>Actual</th><th>Variance</th><th></th></tr></thead>
       <tbody>${rows}
-        <tr class="totals-row"><td colspan="2">TOTAL</td><td>$${totalEst.toLocaleString()}</td><td>$${totalAct.toLocaleString()}</td>
-        <td class="${totalVar > 0 ? "cost-over" : totalVar < 0 ? "cost-under" : ""}">${totalVar === 0 ? "—" : (totalVar > 0 ? "+" : "") + "$" + totalVar.toLocaleString()}</td><td></td></tr>
+        <tr class="totals-row"><td colspan="2">TOTAL</td><td>$${totalEst.toLocaleString("en-US")}</td><td>$${totalAct.toLocaleString("en-US")}</td>
+        <td class="${totalVar > 0 ? "cost-over" : totalVar < 0 ? "cost-under" : ""}">${totalVar === 0 ? "—" : (totalVar > 0 ? "+" : "") + "$" + totalVar.toLocaleString("en-US")}</td><td></td></tr>
       </tbody>
     </table>`;
 }
@@ -1014,6 +1014,16 @@ document.getElementById("sheetUploadInput").addEventListener("change", (e) => {
 });
 
 // ===== Dashboard rendering (computed, read-only) =====
+const STAT_ICONS = {
+  schedule: '<svg viewBox="0 0 24 24" fill="none"><rect x="3" y="12" width="4" height="7" rx="1" stroke="currentColor" stroke-width="1.8"/><rect x="10" y="7" width="4" height="12" rx="1" stroke="currentColor" stroke-width="1.8"/><rect x="17" y="3" width="4" height="16" rx="1" stroke="currentColor" stroke-width="1.8"/></svg>',
+  budget: '<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v10M9.5 9.5c0-1.4 1.1-2 2.5-2s2.5.7 2.5 2c0 3-5 1.5-5 4.5 0 1.3 1.1 2 2.5 2s2.5-.7 2.5-2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',
+  raid: '<svg viewBox="0 0 24 24" fill="none"><path d="M12 3l8 4v5c0 5-3.4 8-8 9-4.6-1-8-4-8-9V7l8-4z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>',
+  submittals: '<svg viewBox="0 0 24 24" fill="none"><path d="M6 3h9l4 4v14H6V3z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 12h6M9 16h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',
+  punch: '<svg viewBox="0 0 24 24" fill="none"><path d="M5 5h14v14H5z" stroke="currentColor" stroke-width="1.8"/><path d="M8 12l2.5 2.5L16 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  siteTasks: '<svg viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="5" height="16" rx="1" stroke="currentColor" stroke-width="1.8"/><rect x="9.5" y="4" width="5" height="10" rx="1" stroke="currentColor" stroke-width="1.8"/><rect x="16" y="4" width="5" height="13" rx="1" stroke="currentColor" stroke-width="1.8"/></svg>',
+  crew: '<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3.5 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+};
+
 function renderDashboard() {
   const wrap = document.getElementById("dashboardWrap");
   if (!wrap) return;
@@ -1028,7 +1038,8 @@ function renderDashboard() {
   const totalAct = budgetItems.reduce((n, i) => n + Number(i.actual || 0), 0);
   const budgetVar = totalAct - totalEst;
 
-  const raidOpen = ((state.raid && state.raid.items) || []).filter((i) => i.status === "Open" || i.status === "Monitoring").length;
+  const raidItems = (state.raid && state.raid.items) || [];
+  const raidOpen = raidItems.filter((i) => i.status === "Open" || i.status === "Monitoring").length;
   const punchOpen = ((state.punchlist && state.punchlist.items) || []).filter((i) => i.status === "Open" || i.status === "In Progress").length;
   const subOpen = ((state.submittals && state.submittals.items) || []).filter((i) => i.status === "Open" || i.status === "Revise & Resubmit").length;
 
@@ -1043,46 +1054,170 @@ function renderDashboard() {
 
   wrap.innerHTML = `
     <div class="stat-grid">
-      <div class="stat-card${overdue > 0 ? " bad" : ""}">
+      <div class="stat-card${overdue > 0 ? " bad" : ""}"><span class="stat-icon">${STAT_ICONS.schedule}</span>
         <div class="stat-label">Schedule</div>
         <div class="stat-value">${avgProgress === null ? "—" : avgProgress + "%"}</div>
         <div class="stat-sub">${tasks.length} task${tasks.length === 1 ? "" : "s"}${overdue ? ` · ${overdue} overdue` : ""}</div>
       </div>
-      <div class="stat-card${budgetVar > 0 ? " bad" : budgetVar < 0 ? " good" : ""}">
+      <div class="stat-card${budgetVar > 0 ? " bad" : budgetVar < 0 ? " good" : ""}"><span class="stat-icon">${STAT_ICONS.budget}</span>
         <div class="stat-label">Budget Variance</div>
-        <div class="stat-value">${budgetItems.length ? (budgetVar >= 0 ? "+" : "") + "$" + budgetVar.toLocaleString() : "—"}</div>
-        <div class="stat-sub">$${totalAct.toLocaleString()} actual of $${totalEst.toLocaleString()} estimated</div>
+        <div class="stat-value">${budgetItems.length ? (budgetVar >= 0 ? "+" : "") + "$" + budgetVar.toLocaleString("en-US") : "—"}</div>
+        <div class="stat-sub">$${totalAct.toLocaleString("en-US")} actual of $${totalEst.toLocaleString("en-US")} estimated</div>
       </div>
-      <div class="stat-card${raidOpen > 0 ? " warn" : ""}">
+      <div class="stat-card${raidOpen > 0 ? " warn" : ""}"><span class="stat-icon">${STAT_ICONS.raid}</span>
         <div class="stat-label">Open RAID Items</div>
         <div class="stat-value">${raidOpen}</div>
         <div class="stat-sub">Risks, issues &amp; assumptions being tracked</div>
       </div>
-      <div class="stat-card${subOpen > 0 ? " warn" : ""}">
+      <div class="stat-card${subOpen > 0 ? " warn" : ""}"><span class="stat-icon">${STAT_ICONS.submittals}</span>
         <div class="stat-label">Open Submittals/RFIs</div>
         <div class="stat-value">${subOpen}</div>
         <div class="stat-sub">Awaiting response</div>
       </div>
-      <div class="stat-card${punchOpen > 0 ? " warn" : ""}">
+      <div class="stat-card${punchOpen > 0 ? " warn" : ""}"><span class="stat-icon">${STAT_ICONS.punch}</span>
         <div class="stat-label">Open Punch Items</div>
         <div class="stat-value">${punchOpen}</div>
         <div class="stat-sub">Not yet complete or verified</div>
       </div>
-      <div class="stat-card">
+      <div class="stat-card"><span class="stat-icon">${STAT_ICONS.siteTasks}</span>
         <div class="stat-label">Site Tasks</div>
         <div class="stat-value">${kanbanTotal}</div>
         <div class="stat-sub">${kanbanCols.map((c) => `${c.name}: ${c.cards.length}`).join(" · ") || "No board yet"}</div>
       </div>
-      <div class="stat-card">
+      <div class="stat-card"><span class="stat-icon">${STAT_ICONS.crew}</span>
         <div class="stat-label">Crew Hours (7 days)</div>
         <div class="stat-value">${totalHoursThisWeek}</div>
         <div class="stat-sub">${members.length} team member${members.length === 1 ? "" : "s"}</div>
       </div>
     </div>
+
+    <div class="dashboard-charts-row">
+      <div class="live-panel">
+        <div class="stat-label">Site tasks by status</div>
+        ${kanbanTotal ? `<div style="position:relative;height:180px;"><canvas id="taskStatusChart" role="img" aria-label="Site tasks by status"></canvas></div>` : `<p class="dash-empty-note">No site task board yet — add one on the Site Tasks tab.</p>`}
+      </div>
+      <div class="live-panel">
+        <div class="stat-label">Budget: estimated vs. actual</div>
+        ${budgetItems.length ? `<div style="position:relative;height:180px;"><canvas id="budgetCompareChart" role="img" aria-label="Budget estimated versus actual by category, in dollars"></canvas></div>` : `<p class="dash-empty-note">No budget line items yet — add one on the Budget tab.</p>`}
+      </div>
+    </div>
+
+    <div class="dashboard-charts-row">
+      <div class="live-panel">
+        <div class="stat-label">RAID items by status</div>
+        ${raidItems.length ? `<div style="position:relative;height:180px;"><canvas id="raidStatusChart" role="img" aria-label="RAID items by status"></canvas></div>` : `<p class="dash-empty-note">No RAID items yet — add one on the RAID Log tab.</p>`}
+      </div>
+      <div class="live-panel">
+        <div class="stat-label">Attendance trend (last 7 days)</div>
+        ${(state.attendance && state.attendance.records && state.attendance.records.length) ? `<div style="position:relative;height:180px;"><canvas id="attendanceTrendChart" role="img" aria-label="Percent of crew present, last 7 days"></canvas></div>` : `<p class="dash-empty-note">No attendance recorded yet — add some on the Site Ops tab.</p>`}
+      </div>
+    </div>
+
     <div class="dashboard-section-title">Weekly Workload</div>
     <div class="team-panel">${renderWorkloadRowsOnly(members, entries)}</div>
   `;
+
+  renderTaskStatusChart(kanbanCols);
+  renderBudgetCompareChart(budgetItems);
+  renderRaidStatusChart(raidItems);
+  renderAttendanceTrendChart((state.attendance && state.attendance.records) || [], members);
 }
+
+let taskStatusChartInstance = null;
+function renderTaskStatusChart(cols) {
+  const canvas = document.getElementById("taskStatusChart");
+  if (!canvas || !cols.length) return;
+  const palette = ["#F2B705", "#FF6A1A", "#4CAF6D", "#9B7BE0", "#6B6B72"];
+  if (taskStatusChartInstance) taskStatusChartInstance.destroy();
+  taskStatusChartInstance = new Chart(canvas.getContext("2d"), {
+    type: "doughnut",
+    data: { labels: cols.map((c) => c.name), datasets: [{ data: cols.map((c) => c.cards.length), backgroundColor: cols.map((_, i) => palette[i % palette.length]), borderColor: "#232326", borderWidth: 2 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: "right", labels: { color: "#A6A6AC", font: { size: 11 }, boxWidth: 10, padding: 10 } } },
+    },
+  });
+}
+
+let budgetCompareChartInstance = null;
+function renderBudgetCompareChart(items) {
+  const canvas = document.getElementById("budgetCompareChart");
+  if (!canvas || !items.length) return;
+  if (budgetCompareChartInstance) budgetCompareChartInstance.destroy();
+  budgetCompareChartInstance = new Chart(canvas.getContext("2d"), {
+    type: "bar",
+    data: {
+      labels: items.map((i) => i.category || i.description),
+      datasets: [
+        { label: "Estimated", data: items.map((i) => Number(i.estimated) || 0), backgroundColor: "#55555C", borderRadius: 2, maxBarThickness: 22 },
+        { label: "Actual", data: items.map((i) => Number(i.actual) || 0), backgroundColor: "#F2B705", borderRadius: 2, maxBarThickness: 22 },
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: $${ctx.parsed.y.toLocaleString("en-US")}` } },
+      },
+      scales: {
+        x: { ticks: { color: "#A6A6AC", font: { size: 10 } }, grid: { display: false } },
+        y: { ticks: { color: "#6B6B72", font: { size: 10 }, callback: (v) => "$" + (v >= 1000 ? v / 1000 + "k" : v) }, grid: { color: "rgba(255,255,255,0.05)" } },
+      },
+    },
+  });
+}
+
+let raidStatusChartInstance = null;
+function renderRaidStatusChart(items) {
+  const canvas = document.getElementById("raidStatusChart");
+  if (!canvas || !items.length) return;
+  const statuses = ["Open", "Monitoring", "Mitigated", "Closed"];
+  const colors = { Open: "#E24B4B", Monitoring: "#F2B705", Mitigated: "#4CAF6D", Closed: "#6B6B72" };
+  const counts = statuses.map((s) => items.filter((i) => i.status === s).length);
+  if (raidStatusChartInstance) raidStatusChartInstance.destroy();
+  raidStatusChartInstance = new Chart(canvas.getContext("2d"), {
+    type: "bar",
+    data: { labels: statuses, datasets: [{ data: counts, backgroundColor: statuses.map((s) => colors[s]), borderRadius: 2, maxBarThickness: 26 }] },
+    options: {
+      indexAxis: "y", responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { beginAtZero: true, ticks: { color: "#6B6B72", font: { size: 10 }, precision: 0 }, grid: { color: "rgba(255,255,255,0.05)" } },
+        y: { ticks: { color: "#ECECEA", font: { size: 11 } }, grid: { display: false } },
+      },
+    },
+  });
+}
+
+let attendanceTrendChartInstance = null;
+function renderAttendanceTrendChart(records, members) {
+  const canvas = document.getElementById("attendanceTrendChart");
+  if (!canvas || !records.length) return;
+  const labels = [], pcts = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const dateStr = d.toISOString().slice(0, 10);
+    const dayRecords = records.filter((r) => r.date === dateStr);
+    const present = dayRecords.filter((r) => r.status === "Present").length;
+    labels.push(d.toLocaleDateString("en-US", { weekday: "short" }));
+    pcts.push(dayRecords.length ? Math.round((present / dayRecords.length) * 100) : null);
+  }
+  if (attendanceTrendChartInstance) attendanceTrendChartInstance.destroy();
+  attendanceTrendChartInstance = new Chart(canvas.getContext("2d"), {
+    type: "line",
+    data: { labels, datasets: [{ data: pcts, borderColor: "#4CAF6D", backgroundColor: "rgba(76,175,109,0.12)", fill: true, tension: 0.25, spanGaps: true, pointRadius: 3, pointBackgroundColor: "#4CAF6D" }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => ctx.parsed.y === null ? "No data" : ctx.parsed.y + "% present" } } },
+      scales: {
+        x: { ticks: { color: "#6B6B72", font: { size: 10 } }, grid: { display: false } },
+        y: { min: 0, max: 100, ticks: { color: "#6B6B72", font: { size: 10 }, callback: (v) => v + "%" }, grid: { color: "rgba(255,255,255,0.05)" } },
+      },
+    },
+  });
+}
+
 function renderWorkloadRowsOnly(members, entries) {
   if (!members.length) return `<p style="color:var(--text-faint); font-size:13px; margin:0;">No crew added yet — add team members on the Team tab.</p>`;
   const now = new Date();
@@ -1090,6 +1225,8 @@ function renderWorkloadRowsOnly(members, entries) {
   const workloadMap = {};
   members.forEach((m) => { workloadMap[m.name] = 0; });
   entries.forEach((t) => { const d = new Date(t.date); if (d >= weekAgo && d <= now) workloadMap[t.memberName] = (workloadMap[t.memberName] || 0) + Number(t.hours || 0); });
+  const anyHours = Object.values(workloadMap).some((h) => h > 0);
+  if (!anyHours) return `<p style="color:var(--text-faint); font-size:13px; margin:0;">No hours logged in the last 7 days — log time on the Team tab.</p>`;
   return members.map((m) => {
     const hrs = workloadMap[m.name] || 0;
     const pct = Math.min(100, (hrs / 40) * 100);
@@ -1264,7 +1401,7 @@ function renderPortfolioGrid() {
     const s = projectStats(p);
     const pills = [
       `<span class="portfolio-stat-pill">${s.avgProgress === null ? "No schedule" : s.avgProgress + "% complete"}</span>`,
-      `<span class="portfolio-stat-pill ${s.totalEst ? (s.budgetVar > 0 ? "bad" : "good") : ""}">${s.totalEst ? (s.budgetVar >= 0 ? "+" : "") + "$" + s.budgetVar.toLocaleString() + " var" : "No budget"}</span>`,
+      `<span class="portfolio-stat-pill ${s.totalEst ? (s.budgetVar > 0 ? "bad" : "good") : ""}">${s.totalEst ? (s.budgetVar >= 0 ? "+" : "") + "$" + s.budgetVar.toLocaleString("en-US") + " var" : "No budget"}</span>`,
       `<span class="portfolio-stat-pill ${s.openItems > 0 ? "warn" : ""}">${s.openItems} open item${s.openItems === 1 ? "" : "s"}</span>`,
     ].join("");
     return `<div class="portfolio-card" data-project-id="${id}">
