@@ -75,6 +75,24 @@ Budget:
 \`\`\`
 (category is a rough cost grouping, e.g. Sitework, Concrete, Framing, MEP, Finishes. estimated/actual are plain numbers in dollars, no currency symbols or commas)
 
+Materials:
+\`\`\`json
+{"action":"materials","data":{"items":[{"id":"mt1","name":"Concrete","unit":"cu yd","delivered":500,"used":410}]}}
+\`\`\`
+(unit is the unit of measurement, e.g. cu yd, tons, board ft, sheets, sq ft, gallons — use whatever's natural for that material. delivered/used are plain numbers in that unit)
+
+Attendance:
+\`\`\`json
+{"action":"attendance","data":{"records":[{"id":"at1","date":"YYYY-MM-DD","memberName":"...","status":"Present"}]}}
+\`\`\`
+(status is one of: Present, Absent. memberName should match an existing team roster name when possible)
+
+Machinery:
+\`\`\`json
+{"action":"machinery","data":{"items":[{"id":"mc1","name":"EX-102","type":"Excavator","status":"Available"}]}}
+\`\`\`
+(status is one of: In Use, Available, Down)
+
 Rules for structured responses:
 - Only emit ONE json block per reply, and only when the user is asking for something to be created, updated, or edited.
 - Use realistic, specific content based on what the user described — never placeholder text like "Task 1" or "Item A". Use construction-appropriate task names, trades, and terminology.
@@ -101,6 +119,9 @@ function buildSystemPrompt(charts, projectType) {
     section("TEAM", charts.team),
     section("TIMESHEETS", charts.timesheets),
     section("BUDGET", charts.budget),
+    section("MATERIALS", charts.materials),
+    section("ATTENDANCE", charts.attendance),
+    section("MACHINERY", charts.machinery),
   ].join("\n");
   return prompt + stateBlock;
 }
