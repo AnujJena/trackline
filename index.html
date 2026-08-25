@@ -262,6 +262,7 @@
     <button class="tab" data-view="submittals" role="tab" aria-selected="false">Submittals/RFI</button>
     <button class="tab" data-view="punchlist" role="tab" aria-selected="false">Punch List</button>
     <button class="tab" data-view="team" role="tab" aria-selected="false">Team</button>
+    <button class="tab" data-view="siteops" role="tab" aria-selected="false">Site Ops</button>
     <button class="tab" data-view="budget" role="tab" aria-selected="false">Budget</button>
     <button class="tab" data-view="calendar" role="tab" aria-selected="false">Calendar</button>
   </nav>
@@ -293,14 +294,17 @@
       <div class="view-head">
         <div>
           <h1>Project Dashboard</h1>
-          <p class="view-sub">A live snapshot of this project — schedule, budget, open items, and crew workload.</p>
+          <p class="view-sub">A live snapshot of this project — schedule, budget, open items, crew workload, materials, attendance, and machinery.</p>
         </div>
         <div class="view-actions">
+          <button class="btn-ghost" id="dashAutoRefresh" data-on="0">⟳ Auto-refresh: Off</button>
           <button class="btn-ghost" data-export-png="dashboardWrap" data-export-name="project-dashboard">Export PNG</button>
           <button class="btn-ghost" data-export-print>Export PDF</button>
         </div>
       </div>
       <div class="dashboard-wrap" id="dashboardWrap"></div>
+      <div class="dashboard-section-title" style="margin-top:22px;">Site Ops Live View</div>
+      <div class="siteops-live-wrap" id="siteopsLiveWrap"></div>
     </div>
 
     <div class="view" id="view-gantt">
@@ -461,6 +465,24 @@
       <div class="team-wrap" id="teamWrap"></div>
     </div>
 
+    <div class="view" id="view-siteops">
+      <div class="view-head">
+        <div>
+          <h1>Site Ops</h1>
+          <p class="view-sub">Materials, attendance, and machinery — add manually, ask the assistant, or import a spreadsheet.</p>
+        </div>
+        <div class="view-actions">
+          <button class="btn-ghost" data-add-type="material">＋ Add Material</button>
+          <button class="btn-ghost" data-add-type="attendance">＋ Add Attendance</button>
+          <button class="btn-ghost" data-add-type="machine">＋ Add Machine</button>
+          <button class="btn-ghost" id="btnDownloadTemplate">⬇ Download Template Sheet</button>
+          <button class="btn-ghost" id="btnUploadSheet">⬆ Upload Data Sheet</button>
+          <input type="file" id="sheetUploadInput" accept=".xlsx,.xls" style="display:none;">
+        </div>
+      </div>
+      <div class="siteops-wrap" id="siteopsWrap"></div>
+    </div>
+
     <div class="view" id="view-budget">
       <div class="view-head">
         <div>
@@ -548,6 +570,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

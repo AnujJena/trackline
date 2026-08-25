@@ -68,7 +68,8 @@ a { color: var(--accent); text-decoration: none; }
 
 /* rivet corners on riveted panels */
 .feature-card, .browse-card, .portfolio-card, .gantt-wrap, .burndown-wrap, .kanban-col, .raid-table,
-.dailylog-wrap, .submittals-wrap, .punchlist-wrap, .stat-card, .team-panel, .budget-table, .calendar-wrap {
+.dailylog-wrap, .submittals-wrap, .punchlist-wrap, .stat-card, .team-panel, .budget-table, .calendar-wrap,
+.live-gauge-card, .live-panel {
   position: relative;
 }
 .feature-card::before, .feature-card::after,
@@ -878,6 +879,30 @@ a { color: var(--accent); text-decoration: none; }
 .calendar-event.ev-dailylog { background: var(--accent-2); }
 .calendar-event.ev-submittal { background: #9B7BE0; }
 .calendar-event.ev-budget { background: var(--success); }
+
+/* ---------- Site Ops (materials / attendance / machinery) ---------- */
+.siteops-wrap { display: flex; flex-direction: column; gap: 22px; }
+.unit-tag { font-family: var(--font-mono); font-size: 10px; color: var(--text-faint); }
+#dashAutoRefresh[data-on="1"] { background: var(--accent); color: #1a1a1a; border-color: var(--accent-dark); }
+
+.siteops-live-wrap {
+  display: grid;
+  grid-template-columns: 200px 1fr 220px;
+  gap: 14px;
+  margin-top: 14px;
+}
+.live-gauge-card { background: var(--bg-panel); border: 1px solid var(--border); border-left: 3px solid var(--success); border-radius: var(--radius); padding: 16px; text-align: center; }
+.live-gauge-card .stat-label { font-family: var(--font-label); font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-faint); margin-bottom: 10px; }
+.live-gauge-card .gauge-sub { font-size: 10.5px; color: var(--text-dim); margin-top: 8px; font-family: var(--font-mono); }
+.live-panel { background: var(--bg-panel); border: 1px solid var(--border); border-top: 3px solid var(--border-strong); border-radius: var(--radius); padding: 16px; }
+.live-panel .stat-label { font-family: var(--font-label); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); margin-bottom: 10px; }
+.machinery-status-row { display: flex; align-items: center; gap: 8px; padding: 5px 0; }
+.machinery-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.machinery-dot.in-use { background: var(--success); }
+.machinery-dot.available { background: var(--text-faint); }
+.machinery-dot.down { background: var(--danger); }
+.machinery-status-row .m-name { font-size: 12px; color: var(--text); flex: 1; }
+.machinery-status-row .m-status { font-family: var(--font-mono); font-size: 10px; color: var(--text-dim); }
 
 /* ---------- New Project / Add Item modal ---------- */
 .modal-overlay {

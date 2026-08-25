@@ -12,7 +12,8 @@ A project console built specifically for construction project management. Everyt
 - **Punch List** — by location, trade, assigned sub, and status
 
 **Run-the-job modules:**
-- **Dashboard** — a live, computed snapshot of the project: schedule % complete, budget variance, open RAID/RFI/punch counts, site task counts, and crew workload. No setup — it reads whatever's already in the other modules.
+- **Dashboard** — a live, computed snapshot of the project: schedule % complete, budget variance, open RAID/RFI/punch counts, site task counts, crew workload, and now an embedded **Site Ops live view** (workforce attendance gauge, material usage chart with units, machinery status list). An "Auto-refresh" toggle re-renders it every 15 seconds — useful if you leave the dashboard open on a screen in the trailer.
+- **Site Ops** — manage Materials (with unit of measurement, delivered vs. used), Attendance (per team member per day), and Machinery (status: In Use / Available / Down). Add entries manually, ask the assistant, or import a spreadsheet: **Download Template Sheet** gives you a correctly-formatted .xlsx with Materials/Attendance/Machinery tabs; **Upload Data Sheet** reads one back in (this replaces the current data with the sheet's contents, so re-download and re-upload each time you update it).
 - **Team & Timesheets** — crew roster, logged hours per task/day, and a weekly workload view (hours logged in the last 7 days per person).
 - **Budget & Cost** — line items with estimated vs. actual cost and running variance.
 - **Calendar** — every dated item (schedule start/end dates, daily log entries, submittal due dates) plotted on one month view.

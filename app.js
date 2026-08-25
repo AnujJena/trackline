@@ -9,10 +9,13 @@ let state = {
   gantt: null, burndown: null, kanban: null, raid: null,
   dailylog: null, submittals: null, punchlist: null,
   team: null, timesheets: null, budget: null,
+  materials: null, attendance: null, machinery: null,
 };
 let history = [];
 let chatLogData = [];
 let burndownChartInstance = null;
+let materialChartInstance = null;
+let dashAutoRefreshTimer = null;
 let activeProjectId = null;
 let calendarMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 
@@ -82,6 +85,30 @@ const SAMPLES = {
       { id: "b4", category: "MEP", description: "Mechanical, electrical, plumbing rough-in", estimated: 110000, actual: 0 },
     ],
   },
+  materials: {
+    items: [
+      { id: "mt1", name: "Concrete", unit: "cu yd", delivered: 500, used: 410 },
+      { id: "mt2", name: "Structural steel", unit: "tons", delivered: 40, used: 18 },
+      { id: "mt3", name: "Framing lumber", unit: "board ft", delivered: 12000, used: 10800 },
+      { id: "mt4", name: "Drywall", unit: "sheets", delivered: 600, used: 180 },
+      { id: "mt5", name: "Insulation", unit: "sq ft", delivered: 8000, used: 5040 },
+    ],
+  },
+  attendance: {
+    records: [
+      { id: "at1", date: "2026-08-25", memberName: "John Smith", status: "Present" },
+      { id: "at2", date: "2026-08-25", memberName: "Maria Lopez", status: "Present" },
+      { id: "at3", date: "2026-08-25", memberName: "Dave Chen", status: "Absent" },
+    ],
+  },
+  machinery: {
+    items: [
+      { id: "mc1", name: "EX-102", type: "Excavator", status: "In Use" },
+      { id: "mc2", name: "CR-01", type: "Tower Crane", status: "In Use" },
+      { id: "mc3", name: "DT-04", type: "Dump Truck", status: "Available" },
+      { id: "mc4", name: "FL-02", type: "Forklift", status: "Down" },
+    ],
+  },
 };
 
 // ===== Page navigation =====
@@ -129,12 +156,19 @@ function ensureCollection(type) {
     if (!state.timesheets) state.timesheets = { entries: [] };
   }
   if (type === "budget" && !state.budget) state.budget = { items: [] };
+  if (type === "material" && !state.materials) state.materials = { items: [] };
+  if (type === "attendance") {
+    if (!state.team) state.team = { members: [] };
+    if (!state.attendance) state.attendance = { records: [] };
+  }
+  if (type === "machine" && !state.machinery) state.machinery = { items: [] };
 }
 
 const ADD_TITLES = {
   gantt: "Add Task", kanban: "Add Card", raid: "Add RAID Item", dailylog: "Add Daily Log Entry",
   submittals: "Add Submittal / RFI", punchlist: "Add Punch List Item", burndown: "Add Day",
   teammember: "Add Team Member", timesheet: "Log Hours", budget: "Add Budget Line Item",
+  material: "Add Material", attendance: "Add Attendance Record", machine: "Add Machine",
 };
 
 const FIELD_BUILDERS = {
@@ -205,6 +239,26 @@ const FIELD_BUILDERS = {
     ${fieldRow("Description", `<input type="text" id="af-description" placeholder="e.g. Foundation & footings">`)}
     ${fieldRow("Estimated ($)", `<input type="number" id="af-estimated" min="0" step="1" value="0">`)}
     ${fieldRow("Actual ($)", `<input type="number" id="af-actual" min="0" step="1" value="0">`)}
+  `,
+  material: () => `
+    ${fieldRow("Material name", `<input type="text" id="af-name" placeholder="e.g. Concrete">`)}
+    ${fieldRow("Unit of measurement", `<input type="text" id="af-unit" placeholder="e.g. cu yd, tons, sheets, sq ft">`)}
+    ${fieldRow("Delivered", `<input type="number" id="af-delivered" min="0" step="0.1" value="0">`)}
+    ${fieldRow("Used", `<input type="number" id="af-used" min="0" step="0.1" value="0">`)}
+  `,
+  attendance: () => {
+    const members = (state.team && state.team.members) || [];
+    const options = members.length
+      ? members.map((m) => `<option value="${escapeHtml(m.name)}">${escapeHtml(m.name)}</option>`).join("")
+      : `<option value="">Add a team member first</option>`;
+    return `${fieldRow("Date", `<input type="date" id="af-date" value="${todayISO()}">`)}
+    ${fieldRow("Team member", `<select id="af-memberName">${options}</select>`)}
+    ${fieldRow("Status", `<select id="af-status"><option selected>Present</option><option>Absent</option></select>`)}`;
+  },
+  machine: () => `
+    ${fieldRow("Name / ID", `<input type="text" id="af-name" placeholder="e.g. EX-102">`)}
+    ${fieldRow("Type", `<input type="text" id="af-type" placeholder="e.g. Excavator">`)}
+    ${fieldRow("Status", `<select id="af-status"><option selected>Available</option><option>In Use</option><option>Down</option></select>`)}
   `,
 };
 
@@ -279,6 +333,25 @@ document.getElementById("addItemSubmit").addEventListener("click", () => {
     if (!description) { alert("Please enter a description."); return; }
     state.budget.items.push({ id: "b" + Date.now(), category: val("category"), description, estimated: Number(val("estimated")) || 0, actual: Number(val("actual")) || 0 });
     renderBudget(state.budget);
+  } else if (type === "material") {
+    const name = val("name");
+    if (!name) { alert("Please enter a material name."); return; }
+    state.materials.items.push({ id: "mt" + Date.now(), name, unit: val("unit") || "units", delivered: Number(val("delivered")) || 0, used: Number(val("used")) || 0 });
+    renderSiteOps();
+    renderSiteOpsLive();
+  } else if (type === "attendance") {
+    const memberName = val("memberName"), date = val("date");
+    if (!memberName) { alert("Add a team member first."); return; }
+    if (!date) { alert("Please choose a date."); return; }
+    state.attendance.records.push({ id: "at" + Date.now(), date, memberName, status: val("status") });
+    renderSiteOps();
+    renderSiteOpsLive();
+  } else if (type === "machine") {
+    const name = val("name");
+    if (!name) { alert("Please enter a name or ID."); return; }
+    state.machinery.items.push({ id: "mc" + Date.now(), name, type: val("type"), status: val("status") });
+    renderSiteOps();
+    renderSiteOpsLive();
   }
 
   persistActiveProject();
@@ -303,6 +376,9 @@ function deleteItem(type, id) {
   else if (type === "teammember") { state.team.members = state.team.members.filter((m) => m.id !== id); renderTeam(); }
   else if (type === "timesheet") { state.timesheets.entries = state.timesheets.entries.filter((t) => t.id !== id); renderTeam(); }
   else if (type === "budget") { state.budget.items = state.budget.items.filter((i) => i.id !== id); renderBudget(state.budget); }
+  else if (type === "material") { state.materials.items = state.materials.items.filter((i) => i.id !== id); renderSiteOps(); renderSiteOpsLive(); }
+  else if (type === "attendance") { state.attendance.records = state.attendance.records.filter((r) => r.id !== id); renderSiteOps(); renderSiteOpsLive(); }
+  else if (type === "machine") { state.machinery.items = state.machinery.items.filter((i) => i.id !== id); renderSiteOps(); renderSiteOpsLive(); }
   persistActiveProject();
 }
 
@@ -312,7 +388,10 @@ function saveAllProjects(projects) { try { localStorage.setItem(STORAGE_KEY, JSO
 function newProjectState(name, type) {
   return {
     name, type: type || "",
-    charts: { gantt: null, burndown: null, kanban: null, raid: null, dailylog: null, submittals: null, punchlist: null, team: null, timesheets: null, budget: null },
+    charts: {
+      gantt: null, burndown: null, kanban: null, raid: null, dailylog: null, submittals: null, punchlist: null,
+      team: null, timesheets: null, budget: null, materials: null, attendance: null, machinery: null,
+    },
     apiHistory: [], chatLog: [], updatedAt: Date.now(),
   };
 }
@@ -341,6 +420,9 @@ function loadProjectIntoApp(project) {
   state.team = project.charts.team || null;
   state.timesheets = project.charts.timesheets || null;
   state.budget = project.charts.budget || null;
+  state.materials = project.charts.materials || null;
+  state.attendance = project.charts.attendance || null;
+  state.machinery = project.charts.machinery || null;
   history = project.apiHistory ? [...project.apiHistory] : [];
   chatLogData = project.chatLog ? [...project.chatLog] : [];
 
@@ -353,7 +435,9 @@ function loadProjectIntoApp(project) {
   renderPunchlist(state.punchlist);
   renderTeam();
   renderBudget(state.budget);
+  renderSiteOps();
   renderDashboard();
+  renderSiteOpsLive();
   renderCalendar();
   rebuildChatLogDom();
 
@@ -367,6 +451,7 @@ function persistActiveProject() {
     gantt: state.gantt, burndown: state.burndown, kanban: state.kanban, raid: state.raid,
     dailylog: state.dailylog, submittals: state.submittals, punchlist: state.punchlist,
     team: state.team, timesheets: state.timesheets, budget: state.budget,
+    materials: state.materials, attendance: state.attendance, machinery: state.machinery,
   };
   projects[activeProjectId].apiHistory = history;
   projects[activeProjectId].chatLog = chatLogData;
@@ -441,8 +526,9 @@ function switchView(name) {
     t.setAttribute("aria-selected", active);
   });
   document.querySelectorAll(".view").forEach((v) => v.classList.toggle("active", v.id === `view-${name}`));
-  if (name === "dashboard") renderDashboard();
+  if (name === "dashboard") { renderDashboard(); renderSiteOpsLive(); }
   if (name === "calendar") renderCalendar();
+  if (name === "siteops") renderSiteOps();
 }
 
 // ===== Sample loaders =====
@@ -754,6 +840,179 @@ function renderBudget(data) {
     </table>`;
 }
 
+// ===== Site Ops: management view (Materials / Attendance / Machinery) =====
+function renderSiteOps() {
+  const wrap = document.getElementById("siteopsWrap");
+  if (!wrap) return;
+  const materials = (state.materials && state.materials.items) || [];
+  const records = (state.attendance && state.attendance.records) || [];
+  const machines = (state.machinery && state.machinery.items) || [];
+
+  const materialRows = materials.length
+    ? materials.map((m) => {
+        const pct = m.delivered > 0 ? Math.round((m.used / m.delivered) * 100) : 0;
+        return `<tr><td>${escapeHtml(m.name)}</td><td>${m.used} / ${m.delivered} <span class="unit-tag">${escapeHtml(m.unit)}</span></td><td>${pct}%</td>
+          <td class="col-delete"><button class="row-delete-btn" data-del="material:${m.id}" title="Delete material">×</button></td></tr>`;
+      }).join("")
+    : `<tr><td colspan="4" style="color:var(--text-faint)">No materials added yet.</td></tr>`;
+
+  const sortedRecords = [...records].sort((a, b) => (a.date < b.date ? 1 : -1));
+  const attendanceRows = sortedRecords.length
+    ? sortedRecords.map((r) => `<tr><td>${escapeHtml(r.date)}</td><td>${escapeHtml(r.memberName)}</td>
+        <td><span class="log-badge status-${slug(r.status)}">${escapeHtml(r.status)}</span></td>
+        <td class="col-delete"><button class="row-delete-btn" data-del="attendance:${r.id}" title="Delete record">×</button></td></tr>`).join("")
+    : `<tr><td colspan="4" style="color:var(--text-faint)">No attendance recorded yet.</td></tr>`;
+
+  const machineRows = machines.length
+    ? machines.map((m) => `<tr><td>${escapeHtml(m.name)}</td><td>${escapeHtml(m.type || "—")}</td>
+        <td><span class="log-badge status-${slug(m.status)}">${escapeHtml(m.status)}</span></td>
+        <td class="col-delete"><button class="row-delete-btn" data-del="machine:${m.id}" title="Delete machine">×</button></td></tr>`).join("")
+    : `<tr><td colspan="4" style="color:var(--text-faint)">No machinery added yet.</td></tr>`;
+
+  wrap.innerHTML = `
+    <div class="team-panel">
+      <h2>Materials</h2>
+      <table class="log-table"><thead><tr><th>Material</th><th>Used / Delivered</th><th>Usage</th><th></th></tr></thead><tbody>${materialRows}</tbody></table>
+    </div>
+    <div class="team-panel">
+      <h2>Attendance</h2>
+      <table class="log-table"><thead><tr><th>Date</th><th>Team Member</th><th>Status</th><th></th></tr></thead><tbody>${attendanceRows}</tbody></table>
+    </div>
+    <div class="team-panel">
+      <h2>Machinery</h2>
+      <table class="log-table"><thead><tr><th>Name / ID</th><th>Type</th><th>Status</th><th></th></tr></thead><tbody>${machineRows}</tbody></table>
+    </div>
+  `;
+}
+
+// ===== Site Ops: live view embedded on the Dashboard (Design B) =====
+function renderSiteOpsLive() {
+  const wrap = document.getElementById("siteopsLiveWrap");
+  if (!wrap) return;
+  const materials = (state.materials && state.materials.items) || [];
+  const records = (state.attendance && state.attendance.records) || [];
+  const machines = (state.machinery && state.machinery.items) || [];
+  const members = (state.team && state.team.members) || [];
+
+  const today = todayISO();
+  const todayRecords = records.filter((r) => r.date === today);
+  const presentToday = todayRecords.filter((r) => r.status === "Present").length;
+  const totalForToday = todayRecords.length || members.length;
+  const attendancePct = totalForToday > 0 ? Math.round((presentToday / totalForToday) * 100) : 0;
+  const circumference = 238.7;
+  const dashoffset = circumference - (circumference * attendancePct) / 100;
+
+  wrap.innerHTML = `
+    <div class="live-gauge-card">
+      <div class="stat-label">Workforce today</div>
+      <svg width="90" height="90" viewBox="0 0 90 90" style="margin:0 auto;display:block;">
+        <circle cx="45" cy="45" r="38" fill="none" stroke="#3E3E44" stroke-width="8"/>
+        <circle cx="45" cy="45" r="38" fill="none" stroke="#4CAF6D" stroke-width="8" stroke-dasharray="${circumference}" stroke-dashoffset="${dashoffset}" stroke-linecap="round" transform="rotate(-90 45 45)"/>
+        <text x="45" y="41" text-anchor="middle" fill="#ECECEA" font-family="'Bebas Neue',sans-serif" font-size="20">${attendancePct}%</text>
+        <text x="45" y="57" text-anchor="middle" fill="#6B6B72" font-family="'IBM Plex Mono',monospace" font-size="9">${presentToday}/${totalForToday || 0}</text>
+      </svg>
+      <div class="gauge-sub">${totalForToday ? (totalForToday - presentToday) + " absent" : "No records for today"}</div>
+    </div>
+    <div class="live-panel">
+      <div class="stat-label">Material usage</div>
+      ${materials.length ? `<div style="position:relative;height:190px;"><canvas id="materialUsageChart" role="img" aria-label="Material usage by percentage with unit amounts"></canvas></div>` : `<p style="color:var(--text-faint); font-size:13px; margin:0;">No materials added yet — use the Site Ops tab.</p>`}
+    </div>
+    <div class="live-panel">
+      <div class="stat-label">Heavy machinery</div>
+      <div>${machines.length ? machines.map((m) => `
+        <div class="machinery-status-row">
+          <span class="machinery-dot ${slug(m.status)}"></span>
+          <span class="m-name">${escapeHtml(m.name)}${m.type ? " · " + escapeHtml(m.type) : ""}</span>
+          <span class="m-status">${escapeHtml(m.status)}</span>
+        </div>`).join("") : `<p style="color:var(--text-faint); font-size:13px; margin:0;">No machinery added yet.</p>`}
+      </div>
+    </div>
+  `;
+
+  if (materials.length) {
+    const canvas = document.getElementById("materialUsageChart");
+    const labels = materials.map((m) => m.name);
+    const pcts = materials.map((m) => (m.delivered > 0 ? Math.round((m.used / m.delivered) * 100) : 0));
+    const unitLabels = materials.map((m) => `${m.used}/${m.delivered} ${m.unit}`);
+    if (materialChartInstance) materialChartInstance.destroy();
+    materialChartInstance = new Chart(canvas.getContext("2d"), {
+      type: "bar",
+      data: { labels, datasets: [{ data: pcts, backgroundColor: "#F2B705", borderRadius: 2, maxBarThickness: 16 }] },
+      options: {
+        indexAxis: "y", responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: (ctx) => `${ctx.parsed.x}% used (${unitLabels[ctx.dataIndex]})` } },
+        },
+        scales: {
+          x: { min: 0, max: 100, ticks: { color: "#6B6B72", font: { size: 10 }, callback: (v) => v + "%" }, grid: { color: "rgba(255,255,255,0.05)" } },
+          y: { ticks: { color: "#ECECEA", font: { size: 11 } }, grid: { display: false } },
+        },
+      },
+    });
+  }
+}
+
+document.getElementById("dashAutoRefresh").addEventListener("click", function () {
+  const on = this.dataset.on === "1";
+  if (on) {
+    clearInterval(dashAutoRefreshTimer);
+    dashAutoRefreshTimer = null;
+    this.dataset.on = "0";
+    this.textContent = "⟳ Auto-refresh: Off";
+  } else {
+    dashAutoRefreshTimer = setInterval(() => { renderDashboard(); renderSiteOpsLive(); }, 15000);
+    this.dataset.on = "1";
+    this.textContent = "⟳ Auto-refresh: On (15s)";
+  }
+});
+
+// ===== Excel template download & upload (SheetJS) =====
+document.getElementById("btnDownloadTemplate").addEventListener("click", () => {
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([{ Name: "Concrete", Unit: "cu yd", Delivered: 500, Used: 410 }]), "Materials");
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([{ Date: todayISO(), "Member Name": "John Smith", Status: "Present" }]), "Attendance");
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([{ Name: "EX-102", Type: "Excavator", Status: "In Use" }]), "Machinery");
+  XLSX.writeFile(wb, "trackline-site-ops-template.xlsx");
+});
+
+document.getElementById("btnUploadSheet").addEventListener("click", () => document.getElementById("sheetUploadInput").click());
+document.getElementById("sheetUploadInput").addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  if (!confirm("This will replace your current Materials, Attendance, and Machinery data with whatever is in this sheet's matching tabs. Continue?")) {
+    e.target.value = "";
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = (evt) => {
+    try {
+      const wb = XLSX.read(evt.target.result, { type: "binary" });
+      ensureCollection("material"); ensureCollection("attendance"); ensureCollection("machine");
+      if (wb.SheetNames.includes("Materials")) {
+        const rows = XLSX.utils.sheet_to_json(wb.Sheets["Materials"]);
+        state.materials.items = rows.map((r, i) => ({ id: "mt" + Date.now() + i, name: String(r.Name || ""), unit: String(r.Unit || "units"), delivered: Number(r.Delivered) || 0, used: Number(r.Used) || 0 })).filter((m) => m.name);
+      }
+      if (wb.SheetNames.includes("Attendance")) {
+        const rows = XLSX.utils.sheet_to_json(wb.Sheets["Attendance"]);
+        state.attendance.records = rows.map((r, i) => ({ id: "at" + Date.now() + i, date: String(r.Date || todayISO()), memberName: String(r["Member Name"] || ""), status: String(r.Status || "Present") })).filter((a) => a.memberName);
+      }
+      if (wb.SheetNames.includes("Machinery")) {
+        const rows = XLSX.utils.sheet_to_json(wb.Sheets["Machinery"]);
+        state.machinery.items = rows.map((r, i) => ({ id: "mc" + Date.now() + i, name: String(r.Name || ""), type: String(r.Type || ""), status: String(r.Status || "Available") })).filter((m) => m.name);
+      }
+      renderSiteOps();
+      renderSiteOpsLive();
+      persistActiveProject();
+      setTicker("SITE OPS DATA IMPORTED FROM SPREADSHEET", true);
+    } catch (err) {
+      alert("Couldn't read that file — make sure it's an .xlsx export with Materials, Attendance, and/or Machinery tabs matching the template.");
+    }
+    e.target.value = "";
+  };
+  reader.readAsBinaryString(file);
+});
+
 // ===== Dashboard rendering (computed, read-only) =====
 function renderDashboard() {
   const wrap = document.getElementById("dashboardWrap");
@@ -1050,7 +1309,7 @@ const CHAT_MOUNTS = [
   { log: "chatLog", form: "chatForm", input: "chatInput", send: "chatSend" },
   { log: "chatLogPage", form: "chatFormPage", input: "chatInputPage", send: "chatSendPage" },
 ];
-const VIEW_LABELS = { gantt: "Schedule", kanban: "Site Tasks", burndown: "Progress", raid: "RAID Log", dailylog: "Daily Log", submittals: "Submittals/RFI", punchlist: "Punch List", team: "Team", budget: "Budget", calendar: "Calendar", dashboard: "Dashboard" };
+const VIEW_LABELS = { gantt: "Schedule", kanban: "Site Tasks", burndown: "Progress", raid: "RAID Log", dailylog: "Daily Log", submittals: "Submittals/RFI", punchlist: "Punch List", team: "Team", budget: "Budget", calendar: "Calendar", dashboard: "Dashboard", siteops: "Site Ops" };
 
 function addMessage(role, text) { chatLogData.push({ kind: role, text }); CHAT_MOUNTS.forEach((m) => renderChatBubble(document.getElementById(m.log), role, text)); }
 function addNote(text, viewTab) { chatLogData.push({ kind: "note", text, viewTab }); CHAT_MOUNTS.forEach((m) => renderChatBubble(document.getElementById(m.log), "note", text, viewTab)); }
@@ -1101,6 +1360,9 @@ function handleAssistantReply(reply) {
     else if (action.action === "team" && action.data) { state.team = action.data; renderTeam(); const total = (action.data.members || []).length; addNote(`✓ Team updated (${total} members)`, "team"); setTicker(`DRAFTED TEAM · ${total} MEMBERS`, true); }
     else if (action.action === "timesheet" && action.data) { state.timesheets = action.data; renderTeam(); const total = (action.data.entries || []).length; addNote(`✓ Timesheets updated (${total} entries)`, "team"); setTicker(`DRAFTED TIMESHEETS · ${total} ENTRIES`, true); }
     else if (action.action === "budget" && action.data) { renderBudget(action.data); const total = (action.data.items || []).length; addNote(`✓ Budget updated (${total} line items)`, "budget"); setTicker(`DRAFTED BUDGET · ${total} ITEMS`, true); }
+    else if (action.action === "materials" && action.data) { state.materials = action.data; renderSiteOps(); renderSiteOpsLive(); const total = (action.data.items || []).length; addNote(`✓ Materials updated (${total} items)`, "siteops"); setTicker(`DRAFTED MATERIALS · ${total} ITEMS`, true); }
+    else if (action.action === "attendance" && action.data) { state.attendance = action.data; renderSiteOps(); renderSiteOpsLive(); const total = (action.data.records || []).length; addNote(`✓ Attendance updated (${total} records)`, "siteops"); setTicker(`DRAFTED ATTENDANCE · ${total} RECORDS`, true); }
+    else if (action.action === "machinery" && action.data) { state.machinery = action.data; renderSiteOps(); renderSiteOpsLive(); const total = (action.data.items || []).length; addNote(`✓ Machinery updated (${total} items)`, "siteops"); setTicker(`DRAFTED MACHINERY · ${total} ITEMS`, true); }
     persistActiveProject();
   } else {
     setTicker("SYSTEM READY · ASK THE ASSISTANT TO PLAN, TRACK, OR CHART YOUR PROJECT");
