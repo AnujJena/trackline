@@ -47,6 +47,40 @@ a { color: var(--accent); text-decoration: none; }
   background: repeating-linear-gradient(45deg, var(--accent) 0 12px, #1a1a1a 12px 24px);
 }
 
+/* ================= Login gate ================= */
+#loginView { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+.login-box {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-strong);
+  border-top: 3px solid var(--accent);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+  padding: 32px 30px;
+  width: 100%;
+  max-width: 360px;
+}
+.login-note { font-size: 11.5px; color: var(--text-faint); line-height: 1.5; margin: 0 0 18px; padding: 10px 12px; background: var(--bg-panel-2); border: 1px solid var(--border); border-radius: var(--radius); }
+.login-box label { display: block; font-family: var(--font-label); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-faint); margin: 12px 0 6px; }
+.login-box input { width: 100%; background: var(--bg-panel-2); border: 1px solid var(--border-strong); border-radius: var(--radius); color: var(--text); padding: 10px 12px; font-size: 14px; }
+.login-box input:focus { outline: none; border-color: var(--accent); }
+.login-error { color: var(--danger); font-size: 12.5px; margin-top: 10px; }
+
+/* ================= Highlighted tab (Charter) ================= */
+.tab-highlight {
+  background: var(--accent-dim) !important;
+  border: 1px solid var(--accent-dark) !important;
+  color: var(--accent) !important;
+  position: relative;
+}
+.tab-highlight.active { color: #1a1a1a !important; background: var(--accent) !important; }
+.tab-highlight::after {
+  content: "★";
+  font-size: 8px;
+  position: absolute;
+  top: 2px;
+  right: 3px;
+}
+
 /* ================= Shared brand ================= */
 .brand { display: flex; align-items: center; gap: 9px; cursor: default; }
 .brand-mark {
@@ -412,7 +446,7 @@ a { color: var(--accent); text-decoration: none; }
 .chat-history-item.active { background: var(--bg); border-color: var(--border); border-left-color: var(--accent); }
 .chat-history-name { font-family: var(--font-label); font-weight: 600; font-size: 13px; color: var(--text); margin-bottom: 2px; }
 .chat-history-meta { font-size: 11px; color: var(--text-faint); font-family: var(--font-mono); }
-.chatpage-main { display: flex; flex-direction: column; background: var(--bg-page); }
+.chatpage-main { display: flex; flex-direction: column; background: var(--bg-page); min-height: 0; height: 100%; }
 .chatpage-main .chat-log { flex: 1; padding: 24px; max-width: 760px; width: 100%; margin: 0 auto; }
 .chatpage-main .chat-input-row { max-width: 760px; width: 100%; margin: 0 auto; border-top: none; padding: 14px 24px 24px; }
 .chat-view-link {
@@ -643,7 +677,8 @@ a { color: var(--accent); text-decoration: none; }
 .workload-hours { font-family: var(--font-mono); font-size: 11px; color: var(--text-dim); width: 60px; text-align: right; flex-shrink: 0; }
 
 /* ---------- Gantt ---------- */
-.gantt-wrap { display: flex; flex-direction: column; gap: 0; background: var(--bg-panel); border: 1px solid var(--border); border-top: 3px solid var(--border-strong); border-radius: var(--radius); padding: 16px 20px; }
+.gantt-scroll { overflow-x: auto; padding-bottom: 6px; }
+.gantt-wrap { display: flex; flex-direction: column; gap: 0; background: var(--bg-panel); border: 1px solid var(--border); border-top: 3px solid var(--border-strong); border-radius: var(--radius); padding: 16px 20px; min-width: 640px; }
 .gantt-header {
   display: grid;
   grid-template-columns: 200px 1fr 30px;
@@ -901,6 +936,62 @@ a { color: var(--accent); text-decoration: none; }
 .calendar-event.ev-submittal { background: #9B7BE0; }
 .calendar-event.ev-budget { background: var(--success); }
 
+/* ---------- Project Charter ---------- */
+.charter-wrap { background: var(--bg-panel); border: 1px solid var(--border); border-top: 3px solid var(--accent); border-radius: var(--radius); padding: 22px 26px; position: relative; }
+.charter-field { margin-bottom: 16px; }
+.charter-field label { display: block; font-family: var(--font-label); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-faint); margin-bottom: 6px; }
+.charter-field textarea, .charter-field input {
+  width: 100%;
+  background: var(--bg-panel-2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  color: var(--text);
+  padding: 9px 11px;
+  font-size: 13.5px;
+  font-family: var(--font-body);
+  resize: vertical;
+}
+.charter-field textarea:focus, .charter-field input:focus { outline: none; border-color: var(--accent); }
+.charter-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 20px; }
+@media (max-width: 780px) { .charter-grid { grid-template-columns: 1fr; } }
+
+/* ---------- Crashing / WBS / Inventory (reuse log-table look) ---------- */
+.crashing-wrap, .wbs-wrap, .inventory-wrap { background: transparent; }
+.crash-slope-good { color: var(--success); font-weight: 600; }
+.crash-recommend { font-family: var(--font-mono); font-size: 10px; background: var(--accent-dim); color: var(--accent); border: 1px solid var(--accent-dark); padding: 2px 7px; border-radius: 100px; }
+.wbs-phase { font-family: var(--font-label); font-weight: 600; color: var(--text); }
+.wbs-item { color: var(--text-dim); padding-left: 18px; }
+.wbs-code { font-family: var(--font-mono); font-size: 11px; color: var(--text-faint); margin-right: 8px; }
+.stock-low { color: var(--danger); font-weight: 600; }
+
+/* ---------- Inline status radio groups ---------- */
+.status-radio-group { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.status-radio-option { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; font-family: var(--font-mono); font-size: 10px; color: var(--text-faint); }
+.status-radio-option input[type="radio"] { accent-color: var(--accent); cursor: pointer; margin: 0; }
+.status-radio-option.checked { color: var(--text); font-weight: 600; }
+
+/* ---------- Health score gauge (Dashboard) ---------- */
+.health-banner {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 18px 22px;
+  margin-bottom: 18px;
+}
+.health-banner.good { border-left-color: var(--success); }
+.health-banner.fair { border-left-color: var(--accent); }
+.health-banner.bad { border-left-color: var(--danger); }
+.health-score-text h2 { font-family: var(--font-label); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-faint); margin: 0 0 4px; }
+.health-score-text p { margin: 0; font-size: 12.5px; color: var(--text-dim); }
+.health-score-rating { font-family: var(--font-display); font-size: 22px; letter-spacing: 0.03em; text-transform: uppercase; }
+.health-banner.good .health-score-rating { color: var(--success); }
+.health-banner.fair .health-score-rating { color: var(--accent); }
+.health-banner.bad .health-score-rating { color: var(--danger); }
+
 /* ---------- Site Ops (materials / attendance / machinery) ---------- */
 .siteops-wrap { display: flex; flex-direction: column; gap: 22px; }
 .unit-tag { font-family: var(--font-mono); font-size: 10px; color: var(--text-faint); }
@@ -986,6 +1077,7 @@ a { color: var(--accent); text-decoration: none; }
   display: flex;
   flex-direction: column;
   height: 100%;
+  min-height: 0;
 }
 .copilot-head { padding: 16px 18px 10px; border-bottom: 1px solid var(--border); }
 .copilot-title { font-family: var(--font-label); font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; display: block; color: var(--text); }

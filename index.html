@@ -11,8 +11,25 @@
 </head>
 <body>
 
+<!-- ===================== LOGIN GATE ===================== -->
+<div id="loginView">
+  <div class="login-box">
+    <div class="brand" style="justify-content:center; margin-bottom:18px;">
+      <span class="brand-mark">⚙</span>
+      <span class="brand-name">TRACKLINE</span>
+    </div>
+    <p class="login-note">Demo login for this deployment only — username/password are fixed in the front-end code and are not secure authentication. Anyone with the URL can view the source and bypass this. Use it only as a lightweight gate, not real access control.</p>
+    <label for="loginUser">Username</label>
+    <input type="text" id="loginUser" placeholder="admin" autocomplete="username">
+    <label for="loginPass">Password</label>
+    <input type="password" id="loginPass" placeholder="admin" autocomplete="current-password">
+    <div id="loginError" class="login-error" style="display:none;">Incorrect username or password.</div>
+    <button class="btn-primary btn-block" id="btnLogin" style="margin-top:16px;">Log In</button>
+  </div>
+</div>
+
 <!-- ===================== LANDING PAGE ===================== -->
-<div id="landingView">
+<div id="landingView" style="display:none;">
 
   <header class="landing-nav">
     <div class="brand">
@@ -23,6 +40,7 @@
       <a href="#" id="navDashboard">Dashboard</a>
       <a href="#" id="navPortfolio">Portfolio</a>
       <a href="#" id="navHelp">Help</a>
+      <a href="#" id="navLogout">Log Out</a>
       <span class="profile-dot" title="No account needed — everything is saved in this browser only">◑</span>
     </nav>
   </header>
@@ -39,7 +57,7 @@
       <li>"Open an RFI about the beam detail on sheet S-201"</li>
       <li>"Add a punch list item for Unit 204"</li>
       <li>"Add a budget line for concrete — estimated $45,000"</li>
-      <li>"Add John Smith as site super to the team"</li>
+      <li>"Set up this whole project" — the assistant can update several tabs at once</li>
     </ul>
   </div>
 
@@ -54,143 +72,104 @@
 
   <section class="feature-section">
     <p class="feature-kicker">EVERYTHING YOU NEED</p>
-
     <div class="feature-grid-top">
-
       <div class="feature-card" data-browse="gantt" role="button" tabindex="0">
-        <div class="feature-icon">
-          <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="12" width="4" height="7" rx="1" stroke="currentColor" stroke-width="1.6"/><rect x="10" y="7" width="4" height="12" rx="1" stroke="currentColor" stroke-width="1.6"/><rect x="17" y="3" width="4" height="16" rx="1" stroke="currentColor" stroke-width="1.6"/></svg>
-        </div>
+        <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="12" width="4" height="7" rx="1" stroke="currentColor" stroke-width="1.6"/><rect x="10" y="7" width="4" height="12" rx="1" stroke="currentColor" stroke-width="1.6"/><rect x="17" y="3" width="4" height="16" rx="1" stroke="currentColor" stroke-width="1.6"/></svg></div>
         <h3>Project Schedule</h3>
-        <div class="feature-mini feature-mini-bars">
-          <span style="width:100%"></span><span style="width:65%"></span><span style="width:40%"></span>
-        </div>
+        <div class="feature-mini feature-mini-bars"><span style="width:100%"></span><span style="width:65%"></span><span style="width:40%"></span></div>
       </div>
-
       <div class="feature-card" data-browse="kanban" role="button" tabindex="0">
-        <div class="feature-icon">
-          <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="5" height="16" rx="1" stroke="currentColor" stroke-width="1.6"/><rect x="9.5" y="4" width="5" height="10" rx="1" stroke="currentColor" stroke-width="1.6"/><rect x="16" y="4" width="5" height="13" rx="1" stroke="currentColor" stroke-width="1.6"/></svg>
-        </div>
+        <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="5" height="16" rx="1" stroke="currentColor" stroke-width="1.6"/><rect x="9.5" y="4" width="5" height="10" rx="1" stroke="currentColor" stroke-width="1.6"/><rect x="16" y="4" width="5" height="13" rx="1" stroke="currentColor" stroke-width="1.6"/></svg></div>
         <h3>Site Task Board</h3>
-        <div class="feature-mini feature-mini-kanban">
-          <span class="col-label">TO DO</span><span class="col-label">DOING</span><span class="col-label">DONE</span>
-        </div>
+        <div class="feature-mini feature-mini-kanban"><span class="col-label">TO DO</span><span class="col-label">DOING</span><span class="col-label">DONE</span></div>
       </div>
-
       <div class="feature-card" data-browse="burndown" role="button" tabindex="0">
-        <div class="feature-icon">
-          <svg viewBox="0 0 24 24" fill="none"><path d="M3 20 L8 13 L12 16 L21 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </div>
+        <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M3 20 L8 13 L12 16 L21 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
         <h3>Schedule Burndown</h3>
         <div class="feature-mini feature-mini-burn"></div>
       </div>
-
       <div class="feature-card" data-browse="raid" role="button" tabindex="0">
-        <div class="feature-icon">
-          <svg viewBox="0 0 24 24" fill="none"><path d="M12 3l8 4v5c0 5-3.4 8-8 9-4.6-1-8-4-8-9V7l8-4z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
-        </div>
+        <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3l8 4v5c0 5-3.4 8-8 9-4.6-1-8-4-8-9V7l8-4z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></div>
         <h3>RAID Log</h3>
-        <div class="feature-mini feature-mini-raid">
-          <span class="raid-dot risk"></span><span class="raid-dot assumption"></span><span class="raid-dot issue"></span><span class="raid-dot dependency"></span>
-        </div>
+        <div class="feature-mini feature-mini-raid"><span class="raid-dot risk"></span><span class="raid-dot assumption"></span><span class="raid-dot issue"></span><span class="raid-dot dependency"></span></div>
       </div>
-
     </div>
 
     <p class="feature-kicker">BUILT FOR THE FIELD</p>
-
     <div class="feature-grid-secondary">
-
       <div class="feature-card" data-browse="dailylog" role="button" tabindex="0">
-        <div class="feature-icon">
-          <svg viewBox="0 0 24 24" fill="none"><rect x="4" y="4" width="16" height="17" rx="1.5" stroke="currentColor" stroke-width="1.6"/><path d="M8 2.5v3M16 2.5v3M4 9h16" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
-        </div>
-        <h3>Daily Log</h3>
-        <p class="feature-card-sub">Weather, crew, work performed, delays</p>
+        <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none"><rect x="4" y="4" width="16" height="17" rx="1.5" stroke="currentColor" stroke-width="1.6"/><path d="M8 2.5v3M16 2.5v3M4 9h16" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></div>
+        <h3>Daily Log</h3><p class="feature-card-sub">Weather, crew, work performed, delays</p>
       </div>
-
       <div class="feature-card" data-browse="submittals" role="button" tabindex="0">
-        <div class="feature-icon">
-          <svg viewBox="0 0 24 24" fill="none"><path d="M6 3h9l4 4v14H6V3z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M9 12h6M9 16h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
-        </div>
-        <h3>Submittals &amp; RFIs</h3>
-        <p class="feature-card-sub">Track ball-in-court and due dates</p>
+        <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M6 3h9l4 4v14H6V3z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M9 12h6M9 16h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></div>
+        <h3>Submittals &amp; RFIs</h3><p class="feature-card-sub">Track ball-in-court and due dates</p>
       </div>
-
       <div class="feature-card" data-browse="punchlist" role="button" tabindex="0">
-        <div class="feature-icon">
-          <svg viewBox="0 0 24 24" fill="none"><path d="M5 5h14v14H5z" stroke="currentColor" stroke-width="1.6"/><path d="M8 12l2.5 2.5L16 9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </div>
-        <h3>Punch List</h3>
-        <p class="feature-card-sub">By location, trade, and status</p>
+        <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M5 5h14v14H5z" stroke="currentColor" stroke-width="1.6"/><path d="M8 12l2.5 2.5L16 9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <h3>Punch List</h3><p class="feature-card-sub">By location, trade, and status</p>
       </div>
-
     </div>
 
     <p class="feature-kicker">RUN THE WHOLE JOB</p>
-
     <div class="feature-grid-secondary">
-
       <div class="feature-card" id="cardTeam" role="button" tabindex="0">
-        <div class="feature-icon">
-          <svg viewBox="0 0 24 24" fill="none"><circle cx="9" cy="8" r="3" stroke="currentColor" stroke-width="1.6"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6" stroke="currentColor" stroke-width="1.6"/><circle cx="17.5" cy="9" r="2.5" stroke="currentColor" stroke-width="1.6"/><path d="M15 20c.2-2.6 2-4.7 4.5-5" stroke="currentColor" stroke-width="1.6"/></svg>
-        </div>
-        <h3>Team &amp; Timesheets</h3>
-        <p class="feature-card-sub">Crew roster, hours, weekly workload</p>
+        <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none"><circle cx="9" cy="8" r="3" stroke="currentColor" stroke-width="1.6"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6" stroke="currentColor" stroke-width="1.6"/><circle cx="17.5" cy="9" r="2.5" stroke="currentColor" stroke-width="1.6"/><path d="M15 20c.2-2.6 2-4.7 4.5-5" stroke="currentColor" stroke-width="1.6"/></svg></div>
+        <h3>Team &amp; Timesheets</h3><p class="feature-card-sub">Crew roster, hours, weekly workload</p>
       </div>
-
       <div class="feature-card" id="cardBudget" role="button" tabindex="0">
-        <div class="feature-icon">
-          <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/><path d="M12 7v10M9.5 9.5c0-1.4 1.1-2 2.5-2s2.5.7 2.5 2c0 3-5 1.5-5 4.5 0 1.3 1.1 2 2.5 2s2.5-.7 2.5-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-        </div>
-        <h3>Budget &amp; Cost</h3>
-        <p class="feature-card-sub">Estimated vs. actual, by line item</p>
+        <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/><path d="M12 7v10M9.5 9.5c0-1.4 1.1-2 2.5-2s2.5.7 2.5 2c0 3-5 1.5-5 4.5 0 1.3 1.1 2 2.5 2s2.5-.7 2.5-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+        <h3>Budget &amp; Cost</h3><p class="feature-card-sub">Estimated vs. actual, by line item</p>
       </div>
-
       <div class="feature-card" id="cardCalendar" role="button" tabindex="0">
-        <div class="feature-icon">
-          <svg viewBox="0 0 24 24" fill="none"><rect x="4" y="5" width="16" height="15" rx="1.5" stroke="currentColor" stroke-width="1.6"/><path d="M4 10h16M8 3v4M16 3v4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
-        </div>
-        <h3>Calendar</h3>
-        <p class="feature-card-sub">Every date, on one job calendar</p>
+        <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none"><rect x="4" y="5" width="16" height="15" rx="1.5" stroke="currentColor" stroke-width="1.6"/><path d="M4 10h16M8 3v4M16 3v4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></div>
+        <h3>Calendar</h3><p class="feature-card-sub">Every date, on one job calendar</p>
       </div>
+    </div>
 
+    <p class="feature-kicker">PLAN &amp; ANALYZE</p>
+    <div class="feature-grid-secondary">
+      <div class="feature-card" id="cardCharter" role="button" tabindex="0">
+        <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M6 3h12v18H6z" stroke="currentColor" stroke-width="1.6"/><path d="M9 8h6M9 12h6M9 16h3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></div>
+        <h3>Project Charter</h3><p class="feature-card-sub">Purpose, scope, sponsor, success criteria</p>
+      </div>
+      <div class="feature-card" id="cardWbs" role="button" tabindex="0">
+        <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="5" r="2" stroke="currentColor" stroke-width="1.6"/><circle cx="6" cy="19" r="2" stroke="currentColor" stroke-width="1.6"/><circle cx="18" cy="19" r="2" stroke="currentColor" stroke-width="1.6"/><path d="M12 7v6M12 13L6 17M12 13l6 4" stroke="currentColor" stroke-width="1.6"/></svg></div>
+        <h3>WBS</h3><p class="feature-card-sub">Work breakdown, phases &amp; packages</p>
+      </div>
+      <div class="feature-card" id="cardCrashing" role="button" tabindex="0">
+        <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M4 20l6-10 4 5 6-10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 5h6v6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <h3>Project Crashing</h3><p class="feature-card-sub">Cheapest tasks to compress first</p>
+      </div>
+      <div class="feature-card" id="cardInventory" role="button" tabindex="0">
+        <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M3 7l9-4 9 4-9 4-9-4z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M3 7v10l9 4 9-4V7M12 11v10" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></div>
+        <h3>Inventory</h3><p class="feature-card-sub">Stock on hand, reorder levels</p>
+      </div>
     </div>
 
     <div class="feature-featured" id="cardAiAssistant" role="button" tabindex="0">
-      <div class="feature-icon feature-icon-lg">
-        <svg viewBox="0 0 24 24" fill="none"><path d="M4 5h16v11H8l-4 4V5z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
-      </div>
+      <div class="feature-icon feature-icon-lg"><svg viewBox="0 0 24 24" fill="none"><path d="M4 5h16v11H8l-4 4V5z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></div>
       <div class="feature-featured-text">
         <h3>AI Project Manager</h3>
-        <p>Ask about scheduling, RFIs, change orders, safety, budget, or crew coordination — or have it draft and edit any log, chart, or line item for you. Every conversation is saved so you can pick up where you left off.</p>
+        <p>Ask about scheduling, RFIs, change orders, safety, budget, or crew coordination — or ask it to set up your whole project at once, updating several tabs from a single request. Every conversation is saved so you can pick up where you left off.</p>
       </div>
       <span class="feature-featured-arrow">→</span>
     </div>
   </section>
 
-  <footer class="landing-footer">
-    <p>Trackline is a lightweight, free-to-run construction project console — every feature is unlocked, your data stays in this browser.</p>
-  </footer>
-
+  <footer class="landing-footer"><p>Trackline is a lightweight, free-to-run construction project console — every feature is unlocked, your data stays in this browser.</p></footer>
 </div>
 
 <!-- ===================== BROWSE (per module project picker) ===================== -->
 <div id="browseView" style="display:none;">
   <header class="sub-header">
-    <div class="brand" id="brandHomeBrowse" role="button" tabindex="0" title="Back to home">
-      <span class="brand-mark">⚙</span>
-      <span class="brand-name">TRACKLINE</span>
-    </div>
+    <div class="brand" id="brandHomeBrowse" role="button" tabindex="0" title="Back to home"><span class="brand-mark">⚙</span><span class="brand-name">TRACKLINE</span></div>
     <a href="#" id="backToLandingFromBrowse" class="back-link">← Back to Home</a>
   </header>
   <div class="hazard-strip"></div>
   <div class="browse-wrap">
     <div class="browse-head">
-      <div>
-        <h1 id="browseTitle">Project Schedules</h1>
-        <p class="view-sub" id="browseSub">All projects with a schedule</p>
-      </div>
+      <div><h1 id="browseTitle">Project Schedules</h1><p class="view-sub" id="browseSub">All projects with a schedule</p></div>
       <button class="btn-primary" id="browseAddNew"><span>＋</span> New Project</button>
     </div>
     <div class="browse-grid" id="browseGrid"></div>
@@ -200,19 +179,13 @@
 <!-- ===================== PORTFOLIO (all projects overview) ===================== -->
 <div id="portfolioView" style="display:none;">
   <header class="sub-header">
-    <div class="brand" id="brandHomePortfolio" role="button" tabindex="0" title="Back to home">
-      <span class="brand-mark">⚙</span>
-      <span class="brand-name">TRACKLINE</span>
-    </div>
+    <div class="brand" id="brandHomePortfolio" role="button" tabindex="0" title="Back to home"><span class="brand-mark">⚙</span><span class="brand-name">TRACKLINE</span></div>
     <a href="#" id="backToLandingFromPortfolio" class="back-link">← Back to Home</a>
   </header>
   <div class="hazard-strip"></div>
   <div class="browse-wrap">
     <div class="browse-head">
-      <div>
-        <h1>Portfolio</h1>
-        <p class="view-sub">Every project at a glance — schedule, budget, and open items.</p>
-      </div>
+      <div><h1>Portfolio</h1><p class="view-sub">Every project at a glance — schedule, budget, and open items.</p></div>
       <button class="btn-primary" id="portfolioAddNew"><span>＋</span> New Project</button>
     </div>
     <div class="portfolio-grid" id="portfolioGrid"></div>
@@ -222,10 +195,7 @@
 <!-- ===================== DEDICATED CHAT PAGE ===================== -->
 <div id="chatPageView" style="display:none;">
   <header class="sub-header">
-    <div class="brand" id="brandHomeChat" role="button" tabindex="0" title="Back to home">
-      <span class="brand-mark">⚙</span>
-      <span class="brand-name">TRACKLINE</span>
-    </div>
+    <div class="brand" id="brandHomeChat" role="button" tabindex="0" title="Back to home"><span class="brand-mark">⚙</span><span class="brand-name">TRACKLINE</span></div>
     <a href="#" id="backToLandingFromChat" class="back-link">← Back to Home</a>
   </header>
   <div class="hazard-strip"></div>
@@ -237,7 +207,7 @@
     <section class="chatpage-main">
       <div class="chat-log" id="chatLogPage"></div>
       <form class="chat-input-row" id="chatFormPage">
-        <textarea id="chatInputPage" placeholder="Ask a PM question, or describe/edit a chart or log…" rows="2"></textarea>
+        <textarea id="chatInputPage" placeholder="Ask a PM question, or describe/edit anything…" rows="2"></textarea>
         <button type="submit" id="chatSendPage">Send</button>
       </form>
     </section>
@@ -248,12 +218,10 @@
 <div id="appView" style="display:none;">
 
 <header class="topbar">
-  <div class="brand" id="brandHome" role="button" tabindex="0" title="Back to home">
-    <span class="brand-mark">⚙</span>
-    <span class="brand-name">TRACKLINE</span>
-  </div>
+  <div class="brand" id="brandHome" role="button" tabindex="0" title="Back to home"><span class="brand-mark">⚙</span><span class="brand-name">TRACKLINE</span></div>
   <nav class="tabs" role="tablist">
     <button class="tab active" data-view="dashboard" role="tab" aria-selected="true">Dashboard</button>
+    <button class="tab tab-highlight" data-view="charter" role="tab" aria-selected="false">Charter</button>
     <button class="tab" data-view="gantt" role="tab" aria-selected="false">Schedule</button>
     <button class="tab" data-view="kanban" role="tab" aria-selected="false">Site Tasks</button>
     <button class="tab" data-view="burndown" role="tab" aria-selected="false">Progress</button>
@@ -264,12 +232,12 @@
     <button class="tab" data-view="team" role="tab" aria-selected="false">Team</button>
     <button class="tab" data-view="siteops" role="tab" aria-selected="false">Site Ops</button>
     <button class="tab" data-view="budget" role="tab" aria-selected="false">Budget</button>
+    <button class="tab" data-view="crashing" role="tab" aria-selected="false">Crashing</button>
+    <button class="tab" data-view="wbs" role="tab" aria-selected="false">WBS</button>
+    <button class="tab" data-view="inventory" role="tab" aria-selected="false">Inventory</button>
     <button class="tab" data-view="calendar" role="tab" aria-selected="false">Calendar</button>
   </nav>
-  <div class="status-chip" id="apiStatus">
-    <span class="dot" id="apiDot"></span>
-    <span id="apiStatusText">Checking key…</span>
-  </div>
+  <div class="status-chip" id="apiStatus"><span class="dot" id="apiDot"></span><span id="apiStatusText">Checking key…</span></div>
 </header>
 <div class="hazard-strip"></div>
 
@@ -282,22 +250,17 @@
   <button class="btn-tiny btn-tiny-danger" id="btnDeleteProject" title="Delete project">Delete</button>
 </div>
 
-<div class="ticker" id="ticker">
-  <span class="ticker-text" id="tickerText">SYSTEM READY · ASK THE ASSISTANT TO PLAN, TRACK, OR CHART YOUR PROJECT</span>
-</div>
+<div class="ticker" id="ticker"><span class="ticker-text" id="tickerText">SYSTEM READY · ASK THE ASSISTANT TO PLAN, TRACK, OR CHART YOUR PROJECT</span></div>
 
 <main class="layout">
-
   <section class="canvas">
 
     <div class="view active" id="view-dashboard">
       <div class="view-head">
-        <div>
-          <h1>Project Dashboard</h1>
-          <p class="view-sub">A live snapshot of this project — schedule, budget, open items, crew workload, materials, attendance, and machinery.</p>
-        </div>
+        <div><h1>Project Dashboard</h1><p class="view-sub">A live snapshot of this project — schedule, budget, open items, crew workload, materials, attendance, and machinery.</p></div>
         <div class="view-actions">
           <button class="btn-ghost" id="dashAutoRefresh" data-on="0">⟳ Auto-refresh: Off</button>
+          <button class="btn-ghost" data-refresh="dashboard">⟳ Refresh</button>
           <button class="btn-ghost" data-export-png="dashboardWrap" data-export-name="project-dashboard">Export PNG</button>
           <button class="btn-ghost" data-export-print>Export PDF</button>
         </div>
@@ -307,157 +270,143 @@
       <div class="siteops-live-wrap" id="siteopsLiveWrap"></div>
     </div>
 
+    <div class="view" id="view-charter">
+      <div class="view-head">
+        <div><h1>Project Charter</h1><p class="view-sub">Ask the assistant to draft this, or fill it in and click Save.</p></div>
+        <div class="view-actions">
+          <button class="btn-ghost" id="charterSave">💾 Save</button>
+          <button class="btn-ghost" data-refresh="charter">⟳ Refresh</button>
+          <button class="btn-ghost" data-xl-template="charter">⬇ Template</button>
+          <button class="btn-ghost" data-xl-upload="charter">⬆ Upload</button>
+          <button class="btn-ghost" data-export-png="charterWrap" data-export-name="project-charter">Export PNG</button>
+          <button class="btn-ghost" data-export-print>Export PDF</button>
+        </div>
+      </div>
+      <div class="charter-wrap" id="charterWrap"></div>
+    </div>
+
     <div class="view" id="view-gantt">
       <div class="view-head">
-        <div>
-          <h1>Project Schedule</h1>
-          <p class="view-sub">Ask the assistant: <em>"Plan a 12-week ground-up build as a schedule"</em>, or add tasks manually below.</p>
-        </div>
+        <div><h1>Project Schedule</h1><p class="view-sub">Ask the assistant: <em>"Plan a 12-week ground-up build as a schedule"</em>, or add tasks manually below. Scroll horizontally on long timelines.</p></div>
         <div class="view-actions">
           <button class="btn-ghost" data-add-type="gantt">＋ Add Task</button>
+          <button class="btn-ghost" data-refresh="gantt">⟳ Refresh</button>
+          <button class="btn-ghost" data-xl-template="gantt">⬇ Template</button>
+          <button class="btn-ghost" data-xl-upload="gantt">⬆ Upload</button>
           <button class="btn-ghost" data-export-png="ganttWrap" data-export-name="project-schedule">Export PNG</button>
           <button class="btn-ghost" data-export-print>Export PDF</button>
         </div>
       </div>
-      <div class="gantt-wrap" id="ganttWrap">
-        <div class="empty-state" id="ganttEmpty">
-          <p>No schedule yet.</p>
-          <button class="btn-ghost" data-sample="gantt">Load a sample schedule</button>
+      <div class="gantt-scroll">
+        <div class="gantt-wrap" id="ganttWrap">
+          <div class="empty-state" id="ganttEmpty"><p>No schedule yet.</p><button class="btn-ghost" data-sample="gantt">Load a sample schedule</button></div>
         </div>
       </div>
     </div>
 
     <div class="view" id="view-burndown">
       <div class="view-head">
-        <div>
-          <h1>Schedule Burndown</h1>
-          <p class="view-sub">Ask the assistant, or add each day's numbers manually below.</p>
-        </div>
+        <div><h1>Schedule Burndown</h1><p class="view-sub">Ask the assistant, or add each day's numbers manually below.</p></div>
         <div class="view-actions">
           <button class="btn-ghost" data-add-type="burndown">＋ Add Day</button>
+          <button class="btn-ghost" data-refresh="burndown">⟳ Refresh</button>
+          <button class="btn-ghost" data-xl-template="burndown">⬇ Template</button>
+          <button class="btn-ghost" data-xl-upload="burndown">⬆ Upload</button>
           <button class="btn-ghost" data-export-png-canvas="burndownChart" data-export-name="schedule-burndown">Export PNG</button>
           <button class="btn-ghost" data-export-print>Export PDF</button>
         </div>
       </div>
       <div class="burndown-wrap" id="burndownWrap">
         <canvas id="burndownChart" height="320"></canvas>
-        <div class="empty-state" id="burndownEmpty">
-          <p>No progress data yet.</p>
-          <button class="btn-ghost" data-sample="burndown">Load a sample sprint</button>
-        </div>
+        <div class="empty-state" id="burndownEmpty"><p>No progress data yet.</p><button class="btn-ghost" data-sample="burndown">Load a sample sprint</button></div>
         <div id="burndownTable"></div>
       </div>
     </div>
 
     <div class="view" id="view-kanban">
       <div class="view-head">
-        <div>
-          <h1>Site Task Board</h1>
-          <p class="view-sub">Ask the assistant, drag cards between columns, or add one manually.</p>
-        </div>
+        <div><h1>Site Task Board</h1><p class="view-sub">Ask the assistant, drag cards between columns, or add one manually.</p></div>
         <div class="view-actions">
           <button class="btn-ghost" data-add-type="kanban">＋ Add Card</button>
+          <button class="btn-ghost" data-refresh="kanban">⟳ Refresh</button>
+          <button class="btn-ghost" data-xl-template="kanban">⬇ Template</button>
+          <button class="btn-ghost" data-xl-upload="kanban">⬆ Upload</button>
           <button class="btn-ghost" data-export-png="kanbanWrap" data-export-name="site-task-board">Export PNG</button>
           <button class="btn-ghost" data-export-print>Export PDF</button>
         </div>
       </div>
-      <div class="kanban-wrap" id="kanbanWrap">
-        <div class="empty-state" id="kanbanEmpty">
-          <p>No task board yet.</p>
-          <button class="btn-ghost" data-sample="kanban">Load a sample board</button>
-        </div>
-      </div>
+      <div class="kanban-wrap" id="kanbanWrap"><div class="empty-state" id="kanbanEmpty"><p>No task board yet.</p><button class="btn-ghost" data-sample="kanban">Load a sample board</button></div></div>
     </div>
 
     <div class="view" id="view-raid">
       <div class="view-head">
-        <div>
-          <h1>RAID Log</h1>
-          <p class="view-sub">Ask the assistant, or add a risk, assumption, issue, or dependency manually.</p>
-        </div>
+        <div><h1>RAID Log</h1><p class="view-sub">Ask the assistant, or add a risk, assumption, issue, or dependency manually. Click a status dot to update it inline.</p></div>
         <div class="view-actions">
           <button class="btn-ghost" data-add-type="raid">＋ Add Item</button>
+          <button class="btn-ghost" data-refresh="raid">⟳ Refresh</button>
+          <button class="btn-ghost" data-xl-template="raid">⬇ Template</button>
+          <button class="btn-ghost" data-xl-upload="raid">⬆ Upload</button>
           <button class="btn-ghost" data-export-png="raidWrap" data-export-name="raid-log">Export PNG</button>
           <button class="btn-ghost" data-export-print>Export PDF</button>
         </div>
       </div>
-      <div class="raid-wrap" id="raidWrap">
-        <div class="empty-state" id="raidEmpty">
-          <p>No RAID log yet.</p>
-          <button class="btn-ghost" data-sample="raid">Load a sample log</button>
-        </div>
-      </div>
+      <div class="raid-wrap" id="raidWrap"><div class="empty-state" id="raidEmpty"><p>No RAID log yet.</p><button class="btn-ghost" data-sample="raid">Load a sample log</button></div></div>
     </div>
 
     <div class="view" id="view-dailylog">
       <div class="view-head">
-        <div>
-          <h1>Daily Log</h1>
-          <p class="view-sub">Ask the assistant, or log today's site report manually.</p>
-        </div>
+        <div><h1>Daily Log</h1><p class="view-sub">Ask the assistant, or log today's site report manually.</p></div>
         <div class="view-actions">
           <button class="btn-ghost" data-add-type="dailylog">＋ Add Entry</button>
+          <button class="btn-ghost" data-refresh="dailylog">⟳ Refresh</button>
+          <button class="btn-ghost" data-xl-template="dailylog">⬇ Template</button>
+          <button class="btn-ghost" data-xl-upload="dailylog">⬆ Upload</button>
           <button class="btn-ghost" data-export-png="dailylogWrap" data-export-name="daily-log">Export PNG</button>
           <button class="btn-ghost" data-export-print>Export PDF</button>
         </div>
       </div>
-      <div class="dailylog-wrap" id="dailylogWrap">
-        <div class="empty-state" id="dailylogEmpty">
-          <p>No site reports yet.</p>
-          <button class="btn-ghost" data-sample="dailylog">Load sample entries</button>
-        </div>
-      </div>
+      <div class="dailylog-wrap" id="dailylogWrap"><div class="empty-state" id="dailylogEmpty"><p>No site reports yet.</p><button class="btn-ghost" data-sample="dailylog">Load sample entries</button></div></div>
     </div>
 
     <div class="view" id="view-submittals">
       <div class="view-head">
-        <div>
-          <h1>Submittals &amp; RFIs</h1>
-          <p class="view-sub">Ask the assistant, or log a submittal or RFI manually.</p>
-        </div>
+        <div><h1>Submittals &amp; RFIs</h1><p class="view-sub">Ask the assistant, or log a submittal or RFI manually. Click a status dot to update it inline.</p></div>
         <div class="view-actions">
           <button class="btn-ghost" data-add-type="submittals">＋ Add Item</button>
+          <button class="btn-ghost" data-refresh="submittals">⟳ Refresh</button>
+          <button class="btn-ghost" data-xl-template="submittals">⬇ Template</button>
+          <button class="btn-ghost" data-xl-upload="submittals">⬆ Upload</button>
           <button class="btn-ghost" data-export-png="submittalsWrap" data-export-name="submittals-rfi-log">Export PNG</button>
           <button class="btn-ghost" data-export-print>Export PDF</button>
         </div>
       </div>
-      <div class="submittals-wrap" id="submittalsWrap">
-        <div class="empty-state" id="submittalsEmpty">
-          <p>No submittals or RFIs logged yet.</p>
-          <button class="btn-ghost" data-sample="submittals">Load a sample log</button>
-        </div>
-      </div>
+      <div class="submittals-wrap" id="submittalsWrap"><div class="empty-state" id="submittalsEmpty"><p>No submittals or RFIs logged yet.</p><button class="btn-ghost" data-sample="submittals">Load a sample log</button></div></div>
     </div>
 
     <div class="view" id="view-punchlist">
       <div class="view-head">
-        <div>
-          <h1>Punch List</h1>
-          <p class="view-sub">Ask the assistant, or add a punch list item manually.</p>
-        </div>
+        <div><h1>Punch List</h1><p class="view-sub">Ask the assistant, or add a punch list item manually. Click a status dot to update it inline.</p></div>
         <div class="view-actions">
           <button class="btn-ghost" data-add-type="punchlist">＋ Add Item</button>
+          <button class="btn-ghost" data-refresh="punchlist">⟳ Refresh</button>
+          <button class="btn-ghost" data-xl-template="punchlist">⬇ Template</button>
+          <button class="btn-ghost" data-xl-upload="punchlist">⬆ Upload</button>
           <button class="btn-ghost" data-export-png="punchlistWrap" data-export-name="punch-list">Export PNG</button>
           <button class="btn-ghost" data-export-print>Export PDF</button>
         </div>
       </div>
-      <div class="punchlist-wrap" id="punchlistWrap">
-        <div class="empty-state" id="punchlistEmpty">
-          <p>No punch list yet.</p>
-          <button class="btn-ghost" data-sample="punchlist">Load a sample list</button>
-        </div>
-      </div>
+      <div class="punchlist-wrap" id="punchlistWrap"><div class="empty-state" id="punchlistEmpty"><p>No punch list yet.</p><button class="btn-ghost" data-sample="punchlist">Load a sample list</button></div></div>
     </div>
 
     <div class="view" id="view-team">
       <div class="view-head">
-        <div>
-          <h1>Team &amp; Timesheets</h1>
-          <p class="view-sub">Ask the assistant, or manage your crew and hours manually.</p>
-        </div>
+        <div><h1>Team &amp; Timesheets</h1><p class="view-sub">Ask the assistant, or manage your crew and hours manually.</p></div>
         <div class="view-actions">
           <button class="btn-ghost" data-add-type="teammember">＋ Add Member</button>
           <button class="btn-ghost" data-add-type="timesheet">＋ Log Hours</button>
+          <button class="btn-ghost" data-refresh="team">⟳ Refresh</button>
+          <button class="btn-ghost" data-xl-template="team">⬇ Template</button>
+          <button class="btn-ghost" data-xl-upload="team">⬆ Upload</button>
           <button class="btn-ghost" data-export-png="teamWrap" data-export-name="team-timesheets">Export PNG</button>
           <button class="btn-ghost" data-export-print>Export PDF</button>
         </div>
@@ -467,14 +416,12 @@
 
     <div class="view" id="view-siteops">
       <div class="view-head">
-        <div>
-          <h1>Site Ops</h1>
-          <p class="view-sub">Materials, attendance, and machinery — add manually, ask the assistant, or import a spreadsheet.</p>
-        </div>
+        <div><h1>Site Ops</h1><p class="view-sub">Materials, attendance, and machinery — add manually, ask the assistant, or import a spreadsheet.</p></div>
         <div class="view-actions">
           <button class="btn-ghost" data-add-type="material">＋ Add Material</button>
           <button class="btn-ghost" data-add-type="attendance">＋ Add Attendance</button>
           <button class="btn-ghost" data-add-type="machine">＋ Add Machine</button>
+          <button class="btn-ghost" data-refresh="siteops">⟳ Refresh</button>
           <button class="btn-ghost" id="btnDownloadTemplate">⬇ Download Template Sheet</button>
           <button class="btn-ghost" id="btnUploadSheet">⬆ Upload Data Sheet</button>
           <input type="file" id="sheetUploadInput" accept=".xlsx,.xls" style="display:none;">
@@ -485,34 +432,73 @@
 
     <div class="view" id="view-budget">
       <div class="view-head">
-        <div>
-          <h1>Budget &amp; Cost</h1>
-          <p class="view-sub">Ask the assistant, or add a budget line item manually.</p>
-        </div>
+        <div><h1>Budget &amp; Cost</h1><p class="view-sub">Ask the assistant, or add a budget line item manually.</p></div>
         <div class="view-actions">
           <button class="btn-ghost" data-add-type="budget">＋ Add Line Item</button>
+          <button class="btn-ghost" data-refresh="budget">⟳ Refresh</button>
+          <button class="btn-ghost" data-xl-template="budget">⬇ Template</button>
+          <button class="btn-ghost" data-xl-upload="budget">⬆ Upload</button>
           <button class="btn-ghost" data-export-png="budgetWrap" data-export-name="budget">Export PNG</button>
           <button class="btn-ghost" data-export-print>Export PDF</button>
         </div>
       </div>
-      <div class="budget-wrap" id="budgetWrap">
-        <div class="empty-state" id="budgetEmpty">
-          <p>No budget line items yet.</p>
-          <button class="btn-ghost" data-sample="budget">Load a sample budget</button>
+      <div class="budget-wrap" id="budgetWrap"><div class="empty-state" id="budgetEmpty"><p>No budget line items yet.</p><button class="btn-ghost" data-sample="budget">Load a sample budget</button></div></div>
+    </div>
+
+    <div class="view" id="view-crashing">
+      <div class="view-head">
+        <div><h1>Project Crashing</h1><p class="view-sub">Compares normal vs. crash duration/cost per task to flag the cheapest places to compress the schedule.</p></div>
+        <div class="view-actions">
+          <button class="btn-ghost" data-add-type="crashing">＋ Add Task</button>
+          <button class="btn-ghost" data-refresh="crashing">⟳ Refresh</button>
+          <button class="btn-ghost" data-xl-template="crashing">⬇ Template</button>
+          <button class="btn-ghost" data-xl-upload="crashing">⬆ Upload</button>
+          <button class="btn-ghost" data-export-png="crashingWrap" data-export-name="project-crashing">Export PNG</button>
+          <button class="btn-ghost" data-export-print>Export PDF</button>
         </div>
       </div>
+      <div class="crashing-wrap" id="crashingWrap"><div class="empty-state" id="crashingEmpty"><p>No crashing analysis yet.</p><button class="btn-ghost" data-sample="crashing">Load a sample analysis</button></div></div>
+    </div>
+
+    <div class="view" id="view-wbs">
+      <div class="view-head">
+        <div><h1>Work Breakdown Structure</h1><p class="view-sub">Ask the assistant, or add phases and work packages manually.</p></div>
+        <div class="view-actions">
+          <button class="btn-ghost" data-add-type="wbsphase">＋ Add Phase</button>
+          <button class="btn-ghost" data-add-type="wbsitem">＋ Add Work Package</button>
+          <button class="btn-ghost" data-refresh="wbs">⟳ Refresh</button>
+          <button class="btn-ghost" data-xl-template="wbs">⬇ Template</button>
+          <button class="btn-ghost" data-xl-upload="wbs">⬆ Upload</button>
+          <button class="btn-ghost" data-export-png="wbsWrap" data-export-name="wbs">Export PNG</button>
+          <button class="btn-ghost" data-export-print>Export PDF</button>
+        </div>
+      </div>
+      <div class="wbs-wrap" id="wbsWrap"><div class="empty-state" id="wbsEmpty"><p>No WBS yet.</p><button class="btn-ghost" data-sample="wbs">Load a sample WBS</button></div></div>
+    </div>
+
+    <div class="view" id="view-inventory">
+      <div class="view-head">
+        <div><h1>Inventory</h1><p class="view-sub">Ask the assistant, or add stock items manually. Low-stock items are flagged.</p></div>
+        <div class="view-actions">
+          <button class="btn-ghost" data-add-type="inventory">＋ Add Item</button>
+          <button class="btn-ghost" data-refresh="inventory">⟳ Refresh</button>
+          <button class="btn-ghost" data-xl-template="inventory">⬇ Template</button>
+          <button class="btn-ghost" data-xl-upload="inventory">⬆ Upload</button>
+          <button class="btn-ghost" data-export-png="inventoryWrap" data-export-name="inventory">Export PNG</button>
+          <button class="btn-ghost" data-export-print>Export PDF</button>
+        </div>
+      </div>
+      <div class="inventory-wrap" id="inventoryWrap"><div class="empty-state" id="inventoryEmpty"><p>No inventory yet.</p><button class="btn-ghost" data-sample="inventory">Load sample inventory</button></div></div>
     </div>
 
     <div class="view" id="view-calendar">
       <div class="view-head">
-        <div>
-          <h1>Calendar</h1>
-          <p class="view-sub">Every dated item across your schedule, daily log, submittals, and budget — in one place.</p>
-        </div>
+        <div><h1>Calendar</h1><p class="view-sub">Every dated item across your schedule, daily log, submittals, and budget — in one place.</p></div>
         <div class="view-actions">
           <button class="btn-ghost" id="calPrev">← Prev</button>
           <button class="btn-ghost" id="calToday">Today</button>
           <button class="btn-ghost" id="calNext">Next →</button>
+          <button class="btn-ghost" data-refresh="calendar">⟳ Refresh</button>
           <button class="btn-ghost" data-export-print>Export PDF</button>
         </div>
       </div>
@@ -524,17 +510,15 @@
   <aside class="copilot">
     <div class="copilot-head">
       <span class="copilot-title">PM Assistant</span>
-      <span class="copilot-hint">Answers PM questions · drafts and edits logs &amp; charts on request</span>
+      <span class="copilot-hint">Answers PM questions · can update several tabs from one request</span>
     </div>
     <div class="chat-log" id="chatLog"></div>
     <form class="chat-input-row" id="chatForm">
-      <textarea id="chatInput" placeholder="Ask a PM question, or describe/edit a chart or log…" rows="2"></textarea>
+      <textarea id="chatInput" placeholder="Ask a PM question, or describe/edit anything…" rows="2"></textarea>
       <button type="submit" id="chatSend">Send</button>
     </form>
   </aside>
-
 </main>
-
 </div>
 
 <!-- ===================== NEW PROJECT MODAL ===================== -->
@@ -544,15 +528,8 @@
     <label for="modalProjectName">Project name</label>
     <input type="text" id="modalProjectName" placeholder="e.g. Maple Street Residence">
     <label for="modalProjectType">Project type</label>
-    <select id="modalProjectType">
-      <option value="Residential">Residential</option>
-      <option value="Commercial">Commercial</option>
-      <option value="Infrastructure">Infrastructure</option>
-    </select>
-    <div class="modal-actions">
-      <button class="btn-secondary" id="modalCancel">Cancel</button>
-      <button class="btn-primary" id="modalCreate">Create Project</button>
-    </div>
+    <select id="modalProjectType"><option value="Residential">Residential</option><option value="Commercial">Commercial</option><option value="Infrastructure">Infrastructure</option></select>
+    <div class="modal-actions"><button class="btn-secondary" id="modalCancel">Cancel</button><button class="btn-primary" id="modalCreate">Create Project</button></div>
   </div>
 </div>
 
@@ -561,12 +538,11 @@
   <div class="modal-box">
     <h2 id="addItemModalTitle">Add Item</h2>
     <div id="addItemModalFields"></div>
-    <div class="modal-actions">
-      <button class="btn-secondary" id="addItemCancel">Cancel</button>
-      <button class="btn-primary" id="addItemSubmit">Add</button>
-    </div>
+    <div class="modal-actions"><button class="btn-secondary" id="addItemCancel">Cancel</button><button class="btn-primary" id="addItemSubmit">Add</button></div>
   </div>
 </div>
+
+<input type="file" id="genericXlUploadInput" accept=".xlsx,.xls" style="display:none;">
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>

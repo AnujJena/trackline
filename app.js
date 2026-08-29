@@ -1,8 +1,11 @@
 // ===== Constants =====
 const STORAGE_KEY = "trackline_projects_v1";
 const ACTIVE_KEY = "trackline_active_project_v1";
+const AUTH_KEY = "trackline_authed_v1";
+const DEMO_USER = "admin";
+const DEMO_PASS = "admin";
 const MAX_API_HISTORY = 10;
-const PAGES = ["landingView", "appView", "browseView", "chatPageView", "portfolioView"];
+const PAGES = ["loginView", "landingView", "appView", "browseView", "chatPageView", "portfolioView"];
 
 // ===== State =====
 let state = {
@@ -10,6 +13,7 @@ let state = {
   dailylog: null, submittals: null, punchlist: null,
   team: null, timesheets: null, budget: null,
   materials: null, attendance: null, machinery: null,
+  charter: null, crashing: null, wbs: null, inventory: null,
 };
 let history = [];
 let chatLogData = [];
@@ -20,6 +24,34 @@ let activeProjectId = null;
 let calendarMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 
 function todayISO() { return new Date().toISOString().slice(0, 10); }
+
+// ===== Login gate (demo-only — not real security; see login-note in the UI) =====
+function checkAuthAndBoot() {
+  if (sessionStorage.getItem(AUTH_KEY) === "1") {
+    showPage("landingView");
+  } else {
+    showPage("loginView");
+  }
+}
+document.getElementById("btnLogin").addEventListener("click", attemptLogin);
+document.getElementById("loginPass").addEventListener("keydown", (e) => { if (e.key === "Enter") attemptLogin(); });
+function attemptLogin() {
+  const user = document.getElementById("loginUser").value.trim();
+  const pass = document.getElementById("loginPass").value;
+  const err = document.getElementById("loginError");
+  if (user === DEMO_USER && pass === DEMO_PASS) {
+    sessionStorage.setItem(AUTH_KEY, "1");
+    err.style.display = "none";
+    showPage("landingView");
+  } else {
+    err.style.display = "block";
+  }
+}
+document.getElementById("navLogout").addEventListener("click", (e) => {
+  e.preventDefault();
+  sessionStorage.removeItem(AUTH_KEY);
+  showPage("loginView");
+});
 
 // ===== Sample data (construction-flavored) =====
 const SAMPLES = {
@@ -109,6 +141,28 @@ const SAMPLES = {
       { id: "mc4", name: "FL-02", type: "Forklift", status: "Down" },
     ],
   },
+  crashing: {
+    items: [
+      { id: "cx1", taskName: "Sitework & excavation", normalDuration: 14, crashDuration: 10, normalCost: 38000, crashCost: 47000 },
+      { id: "cx2", taskName: "Foundation & footings", normalDuration: 14, crashDuration: 11, normalCost: 62000, crashCost: 71000 },
+      { id: "cx3", taskName: "Framing", normalDuration: 20, crashDuration: 14, normalCost: 95000, crashCost: 122000 },
+      { id: "cx4", taskName: "MEP rough-in", normalDuration: 21, crashDuration: 17, normalCost: 110000, crashCost: 128000 },
+    ],
+  },
+  wbs: {
+    phases: [
+      { id: "ph1", code: "1", name: "Pre-Construction", items: [{ id: "wi1", code: "1.1", name: "Permitting" }, { id: "wi2", code: "1.2", name: "Site mobilization" }] },
+      { id: "ph2", code: "2", name: "Structure", items: [{ id: "wi3", code: "2.1", name: "Foundation" }, { id: "wi4", code: "2.2", name: "Framing" }] },
+      { id: "ph3", code: "3", name: "Finishes", items: [{ id: "wi5", code: "3.1", name: "Drywall & paint" }, { id: "wi6", code: "3.2", name: "Flooring" }] },
+    ],
+  },
+  inventory: {
+    items: [
+      { id: "iv1", name: "2x4 Studs", category: "Lumber", quantity: 340, unit: "pieces", reorderLevel: 100, location: "Yard A" },
+      { id: "iv2", name: "Portland Cement", category: "Concrete", quantity: 12, unit: "bags", reorderLevel: 20, location: "Storage 2" },
+      { id: "iv3", name: "Romex 12-2 Wire", category: "Electrical", quantity: 900, unit: "ft", reorderLevel: 500, location: "Trailer" },
+    ],
+  },
 };
 
 // ===== Page navigation =====
@@ -162,6 +216,10 @@ function ensureCollection(type) {
     if (!state.attendance) state.attendance = { records: [] };
   }
   if (type === "machine" && !state.machinery) state.machinery = { items: [] };
+  if (type === "crashing" && !state.crashing) state.crashing = { items: [] };
+  if (type === "wbsphase" && !state.wbs) state.wbs = { phases: [] };
+  if (type === "wbsitem" && !state.wbs) state.wbs = { phases: [] };
+  if (type === "inventory" && !state.inventory) state.inventory = { items: [] };
 }
 
 const ADD_TITLES = {
@@ -169,6 +227,8 @@ const ADD_TITLES = {
   submittals: "Add Submittal / RFI", punchlist: "Add Punch List Item", burndown: "Add Day",
   teammember: "Add Team Member", timesheet: "Log Hours", budget: "Add Budget Line Item",
   material: "Add Material", attendance: "Add Attendance Record", machine: "Add Machine",
+  crashing: "Add Task to Crashing Analysis", wbsphase: "Add WBS Phase", wbsitem: "Add Work Package",
+  inventory: "Add Inventory Item",
 };
 
 const FIELD_BUILDERS = {
@@ -259,6 +319,32 @@ const FIELD_BUILDERS = {
     ${fieldRow("Name / ID", `<input type="text" id="af-name" placeholder="e.g. EX-102">`)}
     ${fieldRow("Type", `<input type="text" id="af-type" placeholder="e.g. Excavator">`)}
     ${fieldRow("Status", `<select id="af-status"><option selected>Available</option><option>In Use</option><option>Down</option></select>`)}
+  `,
+  crashing: () => `
+    ${fieldRow("Task name", `<input type="text" id="af-taskName" placeholder="e.g. Framing">`)}
+    ${fieldRow("Normal duration (days)", `<input type="number" id="af-normalDuration" min="0" value="10">`)}
+    ${fieldRow("Crash duration (days)", `<input type="number" id="af-crashDuration" min="0" value="7">`)}
+    ${fieldRow("Normal cost ($)", `<input type="number" id="af-normalCost" min="0" value="0">`)}
+    ${fieldRow("Crash cost ($)", `<input type="number" id="af-crashCost" min="0" value="0">`)}
+  `,
+  wbsphase: () => `
+    ${fieldRow("Phase name", `<input type="text" id="af-name" placeholder="e.g. Structure">`)}
+  `,
+  wbsitem: () => {
+    const phases = (state.wbs && state.wbs.phases) || [];
+    const options = phases.length
+      ? phases.map((p) => `<option value="${escapeHtml(p.id)}">${escapeHtml(p.code)} ${escapeHtml(p.name)}</option>`).join("")
+      : `<option value="">Add a phase first</option>`;
+    return `${fieldRow("Phase", `<select id="af-phaseId">${options}</select>`)}
+    ${fieldRow("Work package name", `<input type="text" id="af-name" placeholder="e.g. Foundation">`)}`;
+  },
+  inventory: () => `
+    ${fieldRow("Item name", `<input type="text" id="af-name" placeholder="e.g. 2x4 Studs">`)}
+    ${fieldRow("Category", `<input type="text" id="af-category" placeholder="e.g. Lumber">`)}
+    ${fieldRow("Quantity on hand", `<input type="number" id="af-quantity" min="0" value="0">`)}
+    ${fieldRow("Unit", `<input type="text" id="af-unit" placeholder="e.g. pieces, bags, ft">`)}
+    ${fieldRow("Reorder level", `<input type="number" id="af-reorderLevel" min="0" value="0">`)}
+    ${fieldRow("Location", `<input type="text" id="af-location" placeholder="e.g. Yard A">`)}
   `,
 };
 
@@ -352,6 +438,40 @@ document.getElementById("addItemSubmit").addEventListener("click", () => {
     state.machinery.items.push({ id: "mc" + Date.now(), name, type: val("type"), status: val("status") });
     renderSiteOps();
     renderSiteOpsLive();
+  } else if (type === "crashing") {
+    const taskName = val("taskName");
+    if (!taskName) { alert("Please enter a task name."); return; }
+    state.crashing.items.push({
+      id: "cx" + Date.now(), taskName,
+      normalDuration: Number(val("normalDuration")) || 0, crashDuration: Number(val("crashDuration")) || 0,
+      normalCost: Number(val("normalCost")) || 0, crashCost: Number(val("crashCost")) || 0,
+    });
+    renderCrashing();
+  } else if (type === "wbsphase") {
+    const name = val("name");
+    if (!name) { alert("Please enter a phase name."); return; }
+    const nextNum = state.wbs.phases.length + 1;
+    state.wbs.phases.push({ id: "ph" + Date.now(), code: String(nextNum), name, items: [] });
+    renderWbs();
+  } else if (type === "wbsitem") {
+    const phaseId = val("phaseId"), name = val("name");
+    if (!phaseId) { alert("Add a phase first."); return; }
+    if (!name) { alert("Please enter a work package name."); return; }
+    const phase = state.wbs.phases.find((p) => p.id === phaseId);
+    if (phase) {
+      const nextNum = phase.items.length + 1;
+      phase.items.push({ id: "wi" + Date.now(), code: `${phase.code}.${nextNum}`, name });
+    }
+    renderWbs();
+  } else if (type === "inventory") {
+    const name = val("name");
+    if (!name) { alert("Please enter an item name."); return; }
+    state.inventory.items.push({
+      id: "iv" + Date.now(), name, category: val("category"),
+      quantity: Number(val("quantity")) || 0, unit: val("unit") || "units",
+      reorderLevel: Number(val("reorderLevel")) || 0, location: val("location"),
+    });
+    renderInventory();
   }
 
   persistActiveProject();
@@ -379,6 +499,10 @@ function deleteItem(type, id) {
   else if (type === "material") { state.materials.items = state.materials.items.filter((i) => i.id !== id); renderSiteOps(); renderSiteOpsLive(); }
   else if (type === "attendance") { state.attendance.records = state.attendance.records.filter((r) => r.id !== id); renderSiteOps(); renderSiteOpsLive(); }
   else if (type === "machine") { state.machinery.items = state.machinery.items.filter((i) => i.id !== id); renderSiteOps(); renderSiteOpsLive(); }
+  else if (type === "crashing") { state.crashing.items = state.crashing.items.filter((i) => i.id !== id); renderCrashing(); }
+  else if (type === "wbsphase") { state.wbs.phases = state.wbs.phases.filter((p) => p.id !== id); renderWbs(); }
+  else if (type === "wbsitem") { state.wbs.phases.forEach((p) => { p.items = p.items.filter((i) => i.id !== id); }); renderWbs(); }
+  else if (type === "inventory") { state.inventory.items = state.inventory.items.filter((i) => i.id !== id); renderInventory(); }
   persistActiveProject();
 }
 
@@ -391,6 +515,7 @@ function newProjectState(name, type) {
     charts: {
       gantt: null, burndown: null, kanban: null, raid: null, dailylog: null, submittals: null, punchlist: null,
       team: null, timesheets: null, budget: null, materials: null, attendance: null, machinery: null,
+      charter: null, crashing: null, wbs: null, inventory: null,
     },
     apiHistory: [], chatLog: [], updatedAt: Date.now(),
   };
@@ -423,6 +548,10 @@ function loadProjectIntoApp(project) {
   state.materials = project.charts.materials || null;
   state.attendance = project.charts.attendance || null;
   state.machinery = project.charts.machinery || null;
+  state.charter = project.charts.charter || null;
+  state.crashing = project.charts.crashing || null;
+  state.wbs = project.charts.wbs || null;
+  state.inventory = project.charts.inventory || null;
   history = project.apiHistory ? [...project.apiHistory] : [];
   chatLogData = project.chatLog ? [...project.chatLog] : [];
 
@@ -436,6 +565,10 @@ function loadProjectIntoApp(project) {
   renderTeam();
   renderBudget(state.budget);
   renderSiteOps();
+  renderCharter();
+  renderCrashing();
+  renderWbs();
+  renderInventory();
   renderDashboard();
   renderSiteOpsLive();
   renderCalendar();
@@ -452,6 +585,7 @@ function persistActiveProject() {
     dailylog: state.dailylog, submittals: state.submittals, punchlist: state.punchlist,
     team: state.team, timesheets: state.timesheets, budget: state.budget,
     materials: state.materials, attendance: state.attendance, machinery: state.machinery,
+    charter: state.charter, crashing: state.crashing, wbs: state.wbs, inventory: state.inventory,
   };
   projects[activeProjectId].apiHistory = history;
   projects[activeProjectId].chatLog = chatLogData;
@@ -529,6 +663,10 @@ function switchView(name) {
   if (name === "dashboard") { renderDashboard(); renderSiteOpsLive(); }
   if (name === "calendar") renderCalendar();
   if (name === "siteops") renderSiteOps();
+  if (name === "charter") renderCharter();
+  if (name === "crashing") renderCrashing();
+  if (name === "wbs") renderWbs();
+  if (name === "inventory") renderInventory();
 }
 
 // ===== Sample loaders =====
@@ -542,6 +680,9 @@ function loadSample(kind) {
   if (kind === "submittals") state.submittals = SAMPLES.submittals, renderSubmittals(state.submittals);
   if (kind === "punchlist") state.punchlist = SAMPLES.punchlist, renderPunchlist(state.punchlist);
   if (kind === "budget") state.budget = SAMPLES.budget, renderBudget(state.budget);
+  if (kind === "crashing") state.crashing = SAMPLES.crashing, renderCrashing();
+  if (kind === "wbs") state.wbs = SAMPLES.wbs, renderWbs();
+  if (kind === "inventory") state.inventory = SAMPLES.inventory, renderInventory();
   persistActiveProject();
 }
 
@@ -574,6 +715,36 @@ function downloadCanvas(canvas, name) {
   link.click();
 }
 document.querySelectorAll("[data-export-print]").forEach((btn) => { btn.addEventListener("click", () => window.print()); });
+
+// ===== Refresh buttons (reload from storage, re-render just that tab) =====
+const REFRESH_RENDERERS = {
+  dashboard: () => { renderDashboard(); renderSiteOpsLive(); },
+  charter: () => renderCharter(),
+  gantt: () => renderGantt(state.gantt),
+  burndown: () => renderBurndown(state.burndown),
+  kanban: () => renderKanban(state.kanban),
+  raid: () => renderRaid(state.raid),
+  dailylog: () => renderDailyLog(state.dailylog),
+  submittals: () => renderSubmittals(state.submittals),
+  punchlist: () => renderPunchlist(state.punchlist),
+  team: () => renderTeam(),
+  siteops: () => { renderSiteOps(); renderSiteOpsLive(); },
+  budget: () => renderBudget(state.budget),
+  crashing: () => renderCrashing(),
+  wbs: () => renderWbs(),
+  inventory: () => renderInventory(),
+  calendar: () => renderCalendar(),
+};
+document.querySelectorAll("[data-refresh]").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const tab = btn.dataset.refresh;
+    const projects = loadAllProjects();
+    const fresh = projects[activeProjectId];
+    if (fresh) loadProjectIntoApp(fresh);
+    else if (REFRESH_RENDERERS[tab]) REFRESH_RENDERERS[tab]();
+    setTicker(`${tab.toUpperCase()} REFRESHED`, true);
+  });
+});
 
 // ===== Gantt rendering =====
 function renderGantt(tasks) {
@@ -610,6 +781,7 @@ function renderGantt(tasks) {
       </div>`;
   });
   wrap.innerHTML = `<div class="gantt-header"><div>Task</div><div class="gantt-scale">${scaleHtml}</div><div></div></div>${rows}`;
+  wrap.style.width = Math.max(640, 260 + weekCount * 90) + "px";
 }
 
 // ===== Burndown rendering =====
@@ -688,6 +860,32 @@ function moveCard(cardId, targetColIdx) {
 }
 
 // ===== RAID rendering =====
+// ===== Inline status radio groups (quick status updates without opening a modal) =====
+function statusRadioGroup(module, id, options, current) {
+  const groupName = `status-${module}-${id}`;
+  return `<div class="status-radio-group" data-status-module="${module}" data-status-id="${id}">
+    ${options.map((opt) => `
+      <label class="status-radio-option ${opt === current ? "checked" : ""}">
+        <input type="radio" name="${groupName}" value="${escapeHtml(opt)}" ${opt === current ? "checked" : ""}>
+        ${escapeHtml(opt)}
+      </label>`).join("")}
+  </div>`;
+}
+document.addEventListener("change", (e) => {
+  const input = e.target.closest(".status-radio-group input[type=radio]");
+  if (!input) return;
+  const group = input.closest(".status-radio-group");
+  updateItemStatus(group.dataset.statusModule, group.dataset.statusId, input.value);
+});
+function updateItemStatus(module, id, newStatus) {
+  if (module === "raid") { const item = (state.raid.items || []).find((i) => i.id === id); if (item) { item.status = newStatus; renderRaid(state.raid); } }
+  else if (module === "submittals") { const item = (state.submittals.items || []).find((i) => i.id === id); if (item) { item.status = newStatus; renderSubmittals(state.submittals); } }
+  else if (module === "punchlist") { const item = (state.punchlist.items || []).find((i) => i.id === id); if (item) { item.status = newStatus; renderPunchlist(state.punchlist); } }
+  else if (module === "machine") { const item = (state.machinery.items || []).find((i) => i.id === id); if (item) { item.status = newStatus; renderSiteOps(); renderSiteOpsLive(); } }
+  else if (module === "attendance") { const rec = (state.attendance.records || []).find((r) => r.id === id); if (rec) { rec.status = newStatus; renderSiteOps(); renderSiteOpsLive(); } }
+  persistActiveProject();
+}
+
 function renderRaid(data) {
   state.raid = data;
   const wrap = document.getElementById("raidWrap");
@@ -700,7 +898,7 @@ function renderRaid(data) {
       <tr><td><span class="raid-badge type-${slug(item.type)}">${escapeHtml(item.type)}</span></td>
       <td>${escapeHtml(item.description)}</td><td>${escapeHtml(item.owner || "—")}</td>
       <td><span class="raid-badge impact-${slug(item.impact)}">${escapeHtml(item.impact || "—")}</span></td>
-      <td><span class="raid-badge status-${slug(item.status)}">${escapeHtml(item.status || "—")}</span></td>
+      <td>${statusRadioGroup("raid", item.id, ["Open", "Monitoring", "Mitigated", "Closed"], item.status)}</td>
       <td class="col-delete"><button class="row-delete-btn" data-del="raid:${item.id}" title="Delete item">×</button></td></tr>`).join("");
   wrap.innerHTML = `<table class="raid-table"><thead><tr><th>Type</th><th>Description</th><th>Owner</th><th>Impact</th><th>Status</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
 }
@@ -733,7 +931,7 @@ function renderSubmittals(data) {
   const rows = data.items.map((item) => `
       <tr><td><span class="log-badge type-${slug(item.type)}">${escapeHtml(item.number)}</span></td>
       <td>${escapeHtml(item.subject)}</td><td>${escapeHtml(item.ballInCourt || "—")}</td><td>${escapeHtml(item.dueDate || "—")}</td>
-      <td><span class="log-badge status-${slug(item.status)}">${escapeHtml(item.status || "—")}</span></td>
+      <td>${statusRadioGroup("submittals", item.id, ["Open", "Answered", "Approved", "Rejected", "Revise & Resubmit"], item.status)}</td>
       <td class="col-delete"><button class="row-delete-btn" data-del="submittals:${item.id}" title="Delete item">×</button></td></tr>`).join("");
   wrap.innerHTML = `<table class="log-table"><thead><tr><th>Number</th><th>Subject</th><th>Ball-in-Court</th><th>Due</th><th>Status</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
 }
@@ -749,7 +947,7 @@ function renderPunchlist(data) {
   }
   const rows = data.items.map((item) => `
       <tr><td>${escapeHtml(item.location)}</td><td>${escapeHtml(item.description)}</td><td>${escapeHtml(item.trade || "—")}</td>
-      <td>${escapeHtml(item.assignedTo || "—")}</td><td><span class="log-badge status-${slug(item.status)}">${escapeHtml(item.status || "—")}</span></td>
+      <td>${escapeHtml(item.assignedTo || "—")}</td><td>${statusRadioGroup("punchlist", item.id, ["Open", "In Progress", "Complete", "Verified"], item.status)}</td>
       <td class="col-delete"><button class="row-delete-btn" data-del="punchlist:${item.id}" title="Delete item">×</button></td></tr>`).join("");
   wrap.innerHTML = `<table class="log-table"><thead><tr><th>Location</th><th>Description</th><th>Trade</th><th>Assigned To</th><th>Status</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
 }
@@ -859,13 +1057,13 @@ function renderSiteOps() {
   const sortedRecords = [...records].sort((a, b) => (a.date < b.date ? 1 : -1));
   const attendanceRows = sortedRecords.length
     ? sortedRecords.map((r) => `<tr><td>${escapeHtml(r.date)}</td><td>${escapeHtml(r.memberName)}</td>
-        <td><span class="log-badge status-${slug(r.status)}">${escapeHtml(r.status)}</span></td>
+        <td>${statusRadioGroup("attendance", r.id, ["Present", "Absent"], r.status)}</td>
         <td class="col-delete"><button class="row-delete-btn" data-del="attendance:${r.id}" title="Delete record">×</button></td></tr>`).join("")
     : `<tr><td colspan="4" style="color:var(--text-faint)">No attendance recorded yet.</td></tr>`;
 
   const machineRows = machines.length
     ? machines.map((m) => `<tr><td>${escapeHtml(m.name)}</td><td>${escapeHtml(m.type || "—")}</td>
-        <td><span class="log-badge status-${slug(m.status)}">${escapeHtml(m.status)}</span></td>
+        <td>${statusRadioGroup("machine", m.id, ["Available", "In Use", "Down"], m.status)}</td>
         <td class="col-delete"><button class="row-delete-btn" data-del="machine:${m.id}" title="Delete machine">×</button></td></tr>`).join("")
     : `<tr><td colspan="4" style="color:var(--text-faint)">No machinery added yet.</td></tr>`;
 
@@ -1013,6 +1211,260 @@ document.getElementById("sheetUploadInput").addEventListener("change", (e) => {
   reader.readAsBinaryString(file);
 });
 
+// ===== Generic Excel template/upload for every other tab =====
+const MODULE_SCHEMAS = {
+  gantt: {
+    sheet: "Schedule",
+    sample: [{ Name: "Framing", Start: "2026-09-07", End: "2026-09-27", Progress: 0 }],
+    setRows: (rows) => { state.gantt = rows.map((r, i) => ({ id: i + 1, name: String(r.Name || ""), start: String(r.Start || todayISO()), end: String(r.End || todayISO()), progress: Number(r.Progress) || 0 })).filter((t) => t.name); },
+    afterSet: () => renderGantt(state.gantt),
+  },
+  burndown: {
+    sheet: "Burndown",
+    sample: [{ Day: 0, Planned: 60, Actual: 60 }],
+    setRows: (rows) => { state.burndown = { days: rows.map((r) => ({ day: Number(r.Day) || 0, ideal: Number(r.Planned) || 0, actual: Number(r.Actual) || 0 })) }; },
+    afterSet: () => renderBurndown(state.burndown),
+  },
+  kanban: {
+    sheet: "Site Tasks",
+    sample: [{ Column: "To Do", Card: "Pour footings" }],
+    setRows: (rows) => {
+      const cols = {};
+      rows.forEach((r) => {
+        const colName = String(r.Column || "To Do");
+        if (!cols[colName]) cols[colName] = [];
+        if (r.Card) cols[colName].push({ id: "c" + Date.now() + Math.random().toString(36).slice(2, 6), title: String(r.Card) });
+      });
+      const names = Object.keys(cols).length ? Object.keys(cols) : ["To Do", "In Progress", "Done"];
+      state.kanban = { columns: names.map((n) => ({ name: n, cards: cols[n] || [] })) };
+    },
+    afterSet: () => renderKanban(state.kanban),
+  },
+  raid: {
+    sheet: "RAID",
+    sample: [{ Type: "Risk", Description: "Steel delivery could slip", Owner: "PM", Impact: "High", Status: "Open" }],
+    setRows: (rows) => { state.raid = { items: rows.map((r, i) => ({ id: "r" + Date.now() + i, type: String(r.Type || "Risk"), description: String(r.Description || ""), owner: String(r.Owner || ""), impact: String(r.Impact || "Medium"), status: String(r.Status || "Open") })).filter((x) => x.description) }; },
+    afterSet: () => renderRaid(state.raid),
+  },
+  dailylog: {
+    sheet: "Daily Log",
+    sample: [{ Date: todayISO(), Weather: "Clear, 75°F", Crew: "8 (Framing crew)", "Work Performed": "...", Delays: "None" }],
+    setRows: (rows) => { state.dailylog = { entries: rows.map((r, i) => ({ id: "d" + Date.now() + i, date: String(r.Date || todayISO()), weather: String(r.Weather || ""), crew: String(r.Crew || ""), workPerformed: String(r["Work Performed"] || ""), delays: String(r.Delays || "None") })) }; },
+    afterSet: () => renderDailyLog(state.dailylog),
+  },
+  submittals: {
+    sheet: "Submittals",
+    sample: [{ Number: "RFI-014", Type: "RFI", Subject: "...", "Ball-in-Court": "Architect", "Due Date": todayISO(), Status: "Open" }],
+    setRows: (rows) => { state.submittals = { items: rows.map((r, i) => ({ id: "s" + Date.now() + i, number: String(r.Number || ""), type: String(r.Type || "RFI"), subject: String(r.Subject || ""), ballInCourt: String(r["Ball-in-Court"] || ""), dueDate: String(r["Due Date"] || ""), status: String(r.Status || "Open") })).filter((x) => x.number) }; },
+    afterSet: () => renderSubmittals(state.submittals),
+  },
+  punchlist: {
+    sheet: "Punch List",
+    sample: [{ Location: "Unit 204", Description: "Touch up paint", Trade: "Painting", "Assigned To": "ABC Painting Co.", Status: "Open" }],
+    setRows: (rows) => { state.punchlist = { items: rows.map((r, i) => ({ id: "p" + Date.now() + i, location: String(r.Location || ""), description: String(r.Description || ""), trade: String(r.Trade || ""), assignedTo: String(r["Assigned To"] || ""), status: String(r.Status || "Open") })).filter((x) => x.location) }; },
+    afterSet: () => renderPunchlist(state.punchlist),
+  },
+  team: {
+    sheet: "Team",
+    sample: [{ Name: "John Smith", Role: "Site Superintendent" }],
+    setRows: (rows) => { state.team = { members: rows.map((r, i) => ({ id: "m" + Date.now() + i, name: String(r.Name || ""), role: String(r.Role || "") })).filter((x) => x.name) }; },
+    afterSet: () => renderTeam(),
+  },
+  budget: {
+    sheet: "Budget",
+    sample: [{ Category: "Concrete", Description: "Foundation & footings", Estimated: 62000, Actual: 0 }],
+    setRows: (rows) => { state.budget = { items: rows.map((r, i) => ({ id: "b" + Date.now() + i, category: String(r.Category || ""), description: String(r.Description || ""), estimated: Number(r.Estimated) || 0, actual: Number(r.Actual) || 0 })).filter((x) => x.description) }; },
+    afterSet: () => renderBudget(state.budget),
+  },
+  crashing: {
+    sheet: "Crashing",
+    sample: [{ Task: "Framing", "Normal Duration": 20, "Crash Duration": 14, "Normal Cost": 95000, "Crash Cost": 122000 }],
+    setRows: (rows) => { state.crashing = { items: rows.map((r, i) => ({ id: "cx" + Date.now() + i, taskName: String(r.Task || ""), normalDuration: Number(r["Normal Duration"]) || 0, crashDuration: Number(r["Crash Duration"]) || 0, normalCost: Number(r["Normal Cost"]) || 0, crashCost: Number(r["Crash Cost"]) || 0 })).filter((x) => x.taskName) }; },
+    afterSet: () => renderCrashing(),
+  },
+  wbs: {
+    sheet: "WBS",
+    sample: [{ Phase: "Structure", "Work Package": "Foundation" }, { Phase: "Structure", "Work Package": "Framing" }],
+    setRows: (rows) => {
+      const phaseMap = {};
+      let phaseNum = 0;
+      rows.forEach((r) => {
+        const phaseName = String(r.Phase || "").trim();
+        if (!phaseName) return;
+        if (!phaseMap[phaseName]) { phaseNum++; phaseMap[phaseName] = { id: "ph" + Date.now() + phaseNum, code: String(phaseNum), name: phaseName, items: [] }; }
+        const wpName = String(r["Work Package"] || "").trim();
+        if (wpName) { const ph = phaseMap[phaseName]; ph.items.push({ id: "wi" + Date.now() + ph.items.length + Math.random().toString(36).slice(2, 5), code: `${ph.code}.${ph.items.length + 1}`, name: wpName }); }
+      });
+      state.wbs = { phases: Object.values(phaseMap) };
+    },
+    afterSet: () => renderWbs(),
+  },
+  inventory: {
+    sheet: "Inventory",
+    sample: [{ Name: "2x4 Studs", Category: "Lumber", Quantity: 340, Unit: "pieces", "Reorder Level": 100, Location: "Yard A" }],
+    setRows: (rows) => { state.inventory = { items: rows.map((r, i) => ({ id: "iv" + Date.now() + i, name: String(r.Name || ""), category: String(r.Category || ""), quantity: Number(r.Quantity) || 0, unit: String(r.Unit || "units"), reorderLevel: Number(r["Reorder Level"]) || 0, location: String(r.Location || "") })).filter((x) => x.name) }; },
+    afterSet: () => renderInventory(),
+  },
+  charter: {
+    sheet: "Charter",
+    sample: [{ Purpose: "...", Objectives: "...", Scope: "...", Stakeholders: "...", Sponsor: "...", Milestones: "...", "Success Criteria": "...", "Approved By": "..." }],
+    setRows: (rows) => {
+      const r = rows[0] || {};
+      state.charter = { purpose: String(r.Purpose || ""), objectives: String(r.Objectives || ""), scope: String(r.Scope || ""), stakeholders: String(r.Stakeholders || ""), sponsor: String(r.Sponsor || ""), milestones: String(r.Milestones || ""), successCriteria: String(r["Success Criteria"] || ""), approvedBy: String(r["Approved By"] || "") };
+    },
+    afterSet: () => renderCharter(),
+  },
+};
+
+document.querySelectorAll("[data-xl-template]").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const schema = MODULE_SCHEMAS[btn.dataset.xlTemplate];
+    if (!schema) return;
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(schema.sample), schema.sheet);
+    XLSX.writeFile(wb, `trackline-${btn.dataset.xlTemplate}-template.xlsx`);
+  });
+});
+
+let pendingXlUploadType = null;
+document.querySelectorAll("[data-xl-upload]").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    pendingXlUploadType = btn.dataset.xlUpload;
+    document.getElementById("genericXlUploadInput").click();
+  });
+});
+document.getElementById("genericXlUploadInput").addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  const type = pendingXlUploadType;
+  if (!file || !type) { e.target.value = ""; return; }
+  const schema = MODULE_SCHEMAS[type];
+  if (!schema) { e.target.value = ""; return; }
+  if (!confirm(`This will replace the current ${schema.sheet} data with whatever is in this sheet. Continue?`)) { e.target.value = ""; return; }
+  const reader = new FileReader();
+  reader.onload = (evt) => {
+    try {
+      const wb = XLSX.read(evt.target.result, { type: "binary" });
+      const sheetName = wb.SheetNames.includes(schema.sheet) ? schema.sheet : wb.SheetNames[0];
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets[sheetName]);
+      schema.setRows(rows);
+      schema.afterSet();
+      renderDashboard();
+      renderSiteOpsLive();
+      persistActiveProject();
+      setTicker(`${schema.sheet.toUpperCase()} DATA IMPORTED FROM SPREADSHEET`, true);
+    } catch (err) {
+      alert(`Couldn't read that file — make sure it's an .xlsx export with a "${schema.sheet}" tab matching the template.`);
+    }
+    e.target.value = "";
+    pendingXlUploadType = null;
+  };
+  reader.readAsBinaryString(file);
+});
+
+// ===== Project Charter (single-record form) =====
+const CHARTER_FIELDS = [
+  { id: "purpose", label: "Purpose / Justification", type: "textarea" },
+  { id: "objectives", label: "Objectives", type: "textarea" },
+  { id: "scope", label: "Scope (in / out)", type: "textarea" },
+  { id: "stakeholders", label: "Key Stakeholders", type: "textarea" },
+  { id: "sponsor", label: "Sponsor", type: "text" },
+  { id: "milestones", label: "High-Level Milestones", type: "textarea" },
+  { id: "successCriteria", label: "Success Criteria", type: "textarea" },
+  { id: "approvedBy", label: "Approved By", type: "text" },
+];
+function renderCharter() {
+  const wrap = document.getElementById("charterWrap");
+  if (!wrap) return;
+  const c = state.charter || {};
+  wrap.innerHTML = `<div class="charter-grid">${CHARTER_FIELDS.map((f) => `
+    <div class="charter-field" style="${f.type === "textarea" ? "grid-column: 1 / -1;" : ""}">
+      <label for="charter-${f.id}">${f.label}</label>
+      ${f.type === "textarea"
+        ? `<textarea id="charter-${f.id}" rows="3">${escapeHtml(c[f.id] || "")}</textarea>`
+        : `<input type="text" id="charter-${f.id}" value="${escapeHtml(c[f.id] || "")}">`}
+    </div>`).join("")}</div>`;
+}
+document.getElementById("charterSave").addEventListener("click", () => {
+  const c = {};
+  CHARTER_FIELDS.forEach((f) => { c[f.id] = document.getElementById(`charter-${f.id}`).value; });
+  state.charter = c;
+  persistActiveProject();
+  setTicker("PROJECT CHARTER SAVED", true);
+});
+
+// ===== Project Crashing (cheapest tasks to compress) =====
+function renderCrashing() {
+  const wrap = document.getElementById("crashingWrap");
+  if (!wrap) return;
+  const items = (state.crashing && state.crashing.items) || [];
+  if (!items.length) {
+    wrap.innerHTML = `<div class="empty-state" id="crashingEmpty"><p>No crashing analysis yet.</p><button class="btn-ghost" data-sample="crashing">Load a sample analysis</button></div>`;
+    rebindSampleButton(wrap);
+    return;
+  }
+  const withSlope = items.map((it) => {
+    const timeSaved = it.normalDuration - it.crashDuration;
+    const costIncrease = it.crashCost - it.normalCost;
+    const slope = timeSaved > 0 ? costIncrease / timeSaved : null;
+    return { ...it, timeSaved, costIncrease, slope };
+  });
+  const ranked = [...withSlope].filter((i) => i.slope !== null).sort((a, b) => a.slope - b.slope);
+  const top3Ids = new Set(ranked.slice(0, 3).map((i) => i.id));
+  const rows = withSlope.map((it) => `
+      <tr>
+        <td>${escapeHtml(it.taskName)}${top3Ids.has(it.id) ? ' <span class="crash-recommend">Focus here</span>' : ""}</td>
+        <td>${it.normalDuration}d → ${it.crashDuration}d (${it.timeSaved}d saved)</td>
+        <td>$${it.normalCost.toLocaleString("en-US")} → $${it.crashCost.toLocaleString("en-US")}</td>
+        <td class="${it.slope !== null ? "crash-slope-good" : ""}">${it.slope !== null ? "$" + Math.round(it.slope).toLocaleString("en-US") + "/day" : "—"}</td>
+        <td class="col-delete"><button class="row-delete-btn" data-del="crashing:${it.id}" title="Delete task">×</button></td>
+      </tr>`).join("");
+  wrap.innerHTML = `
+    <p class="dash-empty-note" style="margin-bottom:12px;">Cost slope = extra cost ÷ days saved. Lowest cost-per-day-saved tasks are the cheapest to compress first — marked "Focus here."</p>
+    <table class="log-table"><thead><tr><th>Task</th><th>Duration (normal → crash)</th><th>Cost (normal → crash)</th><th>Cost / Day Saved</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+// ===== Work Breakdown Structure =====
+function renderWbs() {
+  const wrap = document.getElementById("wbsWrap");
+  if (!wrap) return;
+  const phases = (state.wbs && state.wbs.phases) || [];
+  if (!phases.length) {
+    wrap.innerHTML = `<div class="empty-state" id="wbsEmpty"><p>No WBS yet.</p><button class="btn-ghost" data-sample="wbs">Load a sample WBS</button></div>`;
+    rebindSampleButton(wrap);
+    return;
+  }
+  wrap.innerHTML = `<div class="team-panel">${phases.map((p) => `
+    <div style="margin-bottom:14px;">
+      <div class="wbs-phase"><span class="wbs-code">${escapeHtml(p.code)}</span>${escapeHtml(p.name)}
+        <button class="row-delete-btn" data-del="wbsphase:${p.id}" title="Delete phase" style="margin-left:8px;">×</button>
+      </div>
+      ${(p.items || []).map((it) => `
+        <div class="wbs-item"><span class="wbs-code">${escapeHtml(it.code)}</span>${escapeHtml(it.name)}
+          <button class="row-delete-btn" data-del="wbsitem:${it.id}" title="Delete work package" style="margin-left:8px;">×</button>
+        </div>`).join("") || `<div class="wbs-item" style="color:var(--text-faint)">No work packages yet.</div>`}
+    </div>`).join("")}</div>`;
+}
+
+// ===== Inventory =====
+function renderInventory() {
+  const wrap = document.getElementById("inventoryWrap");
+  if (!wrap) return;
+  const items = (state.inventory && state.inventory.items) || [];
+  if (!items.length) {
+    wrap.innerHTML = `<div class="empty-state" id="inventoryEmpty"><p>No inventory yet.</p><button class="btn-ghost" data-sample="inventory">Load sample inventory</button></div>`;
+    rebindSampleButton(wrap);
+    return;
+  }
+  const rows = items.map((it) => {
+    const low = it.quantity <= it.reorderLevel;
+    return `<tr><td>${escapeHtml(it.name)}</td><td>${escapeHtml(it.category || "—")}</td>
+      <td class="${low ? "stock-low" : ""}">${it.quantity} ${escapeHtml(it.unit)}${low ? " ⚠" : ""}</td>
+      <td>${it.reorderLevel} ${escapeHtml(it.unit)}</td><td>${escapeHtml(it.location || "—")}</td>
+      <td class="col-delete"><button class="row-delete-btn" data-del="inventory:${it.id}" title="Delete item">×</button></td></tr>`;
+  }).join("");
+  wrap.innerHTML = `<table class="log-table"><thead><tr><th>Item</th><th>Category</th><th>On Hand</th><th>Reorder Level</th><th>Location</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
 // ===== Dashboard rendering (computed, read-only) =====
 const STAT_ICONS = {
   schedule: '<svg viewBox="0 0 24 24" fill="none"><rect x="3" y="12" width="4" height="7" rx="1" stroke="currentColor" stroke-width="1.8"/><rect x="10" y="7" width="4" height="12" rx="1" stroke="currentColor" stroke-width="1.8"/><rect x="17" y="3" width="4" height="16" rx="1" stroke="currentColor" stroke-width="1.8"/></svg>',
@@ -1052,7 +1504,27 @@ function renderDashboard() {
   const weekAgo = new Date(now.getTime() - 7 * 86400000);
   const totalHoursThisWeek = entries.filter((t) => { const d = new Date(t.date); return d >= weekAgo && d <= now; }).reduce((n, t) => n + Number(t.hours || 0), 0);
 
+  // Health score: weighted average of schedule, budget, risk, and punch-list health (0-100)
+  const scheduleScore = tasks.length ? Math.max(0, (avgProgress || 0) - overdue * 10) : 100;
+  const budgetPctOver = totalEst > 0 ? ((totalAct - totalEst) / totalEst) * 100 : 0;
+  const budgetScore = budgetItems.length ? Math.max(0, 100 - Math.max(0, budgetPctOver) * 2) : 100;
+  const riskScore = Math.max(0, 100 - raidOpen * 10);
+  const punchScore = Math.max(0, 100 - punchOpen * 5);
+  const healthScore = Math.round((scheduleScore + budgetScore + riskScore + punchScore) / 4);
+  const healthClass = healthScore >= 80 ? "good" : healthScore >= 60 ? "fair" : "bad";
+  const healthRating = healthScore >= 80 ? "Good" : healthScore >= 60 ? "At Risk" : "Critical";
+
   wrap.innerHTML = `
+    <div class="health-banner ${healthClass}">
+      <div class="health-score-text" style="flex:1;">
+        <h2>Project Health Score</h2>
+        <p>Average of schedule, budget, RAID, and punch-list health — a quick read on overall project condition.</p>
+      </div>
+      <div style="text-align:right;">
+        <div class="stat-value" style="font-size:36px;">${healthScore}</div>
+        <div class="health-score-rating">${healthRating}</div>
+      </div>
+    </div>
     <div class="stat-grid">
       <div class="stat-card${overdue > 0 ? " bad" : ""}"><span class="stat-icon">${STAT_ICONS.schedule}</span>
         <div class="stat-label">Schedule</div>
@@ -1365,11 +1837,15 @@ document.querySelectorAll('[data-browse]').forEach((card) => {
 document.getElementById("backToLandingFromBrowse").addEventListener("click", (e) => { e.preventDefault(); showLanding(); });
 document.getElementById("brandHomeBrowse").addEventListener("click", () => showLanding());
 
-// ===================== Team / Budget / Calendar landing cards (deep-link into current project) =====================
+// ===================== Team / Budget / Calendar / Charter / WBS / Crashing / Inventory landing cards (deep-link into current project) =====================
 document.getElementById("cardTeam").addEventListener("click", () => { showApp(); switchView("team"); });
 document.getElementById("cardBudget").addEventListener("click", () => { showApp(); switchView("budget"); });
 document.getElementById("cardCalendar").addEventListener("click", () => { showApp(); switchView("calendar"); });
-[["cardTeam", "team"], ["cardBudget", "budget"], ["cardCalendar", "calendar"]].forEach(([id, tab]) => {
+document.getElementById("cardCharter").addEventListener("click", () => { showApp(); switchView("charter"); });
+document.getElementById("cardWbs").addEventListener("click", () => { showApp(); switchView("wbs"); });
+document.getElementById("cardCrashing").addEventListener("click", () => { showApp(); switchView("crashing"); });
+document.getElementById("cardInventory").addEventListener("click", () => { showApp(); switchView("inventory"); });
+[["cardTeam", "team"], ["cardBudget", "budget"], ["cardCalendar", "calendar"], ["cardCharter", "charter"], ["cardWbs", "wbs"], ["cardCrashing", "crashing"], ["cardInventory", "inventory"]].forEach(([id, tab]) => {
   document.getElementById(id).addEventListener("keydown", (e) => { if (e.key === "Enter") { showApp(); switchView(tab); } });
 });
 
@@ -1446,7 +1922,7 @@ const CHAT_MOUNTS = [
   { log: "chatLog", form: "chatForm", input: "chatInput", send: "chatSend" },
   { log: "chatLogPage", form: "chatFormPage", input: "chatInputPage", send: "chatSendPage" },
 ];
-const VIEW_LABELS = { gantt: "Schedule", kanban: "Site Tasks", burndown: "Progress", raid: "RAID Log", dailylog: "Daily Log", submittals: "Submittals/RFI", punchlist: "Punch List", team: "Team", budget: "Budget", calendar: "Calendar", dashboard: "Dashboard", siteops: "Site Ops" };
+const VIEW_LABELS = { gantt: "Schedule", kanban: "Site Tasks", burndown: "Progress", raid: "RAID Log", dailylog: "Daily Log", submittals: "Submittals/RFI", punchlist: "Punch List", team: "Team", budget: "Budget", calendar: "Calendar", dashboard: "Dashboard", siteops: "Site Ops", charter: "Charter", crashing: "Crashing", wbs: "WBS", inventory: "Inventory" };
 
 function addMessage(role, text) { chatLogData.push({ kind: role, text }); CHAT_MOUNTS.forEach((m) => renderChatBubble(document.getElementById(m.log), role, text)); }
 function addNote(text, viewTab) { chatLogData.push({ kind: "note", text, viewTab }); CHAT_MOUNTS.forEach((m) => renderChatBubble(document.getElementById(m.log), "note", text, viewTab)); }
@@ -1476,31 +1952,45 @@ function rebuildChatLogDom() {
   chatLogData.forEach((m) => CHAT_MOUNTS.forEach((mount) => renderChatBubble(document.getElementById(mount.log), m.kind, m.text, m.viewTab)));
 }
 
-function extractJsonAction(reply) {
-  const match = reply.match(/```json\s*([\s\S]*?)```/i);
-  if (!match) return null;
-  try { return JSON.parse(match[1]); } catch { return null; }
+function extractJsonActions(reply) {
+  const matches = [...reply.matchAll(/```json\s*([\s\S]*?)```/gi)];
+  const actions = [];
+  for (const m of matches) {
+    try { actions.push(JSON.parse(m[1])); } catch { /* skip malformed block */ }
+  }
+  return actions;
+}
+function applyOneAction(action) {
+  if (!action || !action.action || !action.data) return;
+  if (action.action === "gantt") { renderGantt(action.data); addNote(`✓ Schedule updated (${action.data.length} tasks)`, "gantt"); }
+  else if (action.action === "burndown") { renderBurndown(action.data); addNote(`✓ Burndown chart updated`, "burndown"); }
+  else if (action.action === "kanban") { renderKanban(action.data); const total = action.data.columns.reduce((n, c) => n + c.cards.length, 0); addNote(`✓ Site task board updated (${total} cards)`, "kanban"); }
+  else if (action.action === "raid") { renderRaid(action.data); const total = (action.data.items || []).length; addNote(`✓ RAID log updated (${total} items)`, "raid"); }
+  else if (action.action === "dailylog") { renderDailyLog(action.data); const total = (action.data.entries || []).length; addNote(`✓ Daily log updated (${total} entries)`, "dailylog"); }
+  else if (action.action === "submittals") { renderSubmittals(action.data); const total = (action.data.items || []).length; addNote(`✓ Submittals/RFI log updated (${total} items)`, "submittals"); }
+  else if (action.action === "punchlist") { renderPunchlist(action.data); const total = (action.data.items || []).length; addNote(`✓ Punch list updated (${total} items)`, "punchlist"); }
+  else if (action.action === "team") { state.team = action.data; renderTeam(); const total = (action.data.members || []).length; addNote(`✓ Team updated (${total} members)`, "team"); }
+  else if (action.action === "timesheet") { state.timesheets = action.data; renderTeam(); const total = (action.data.entries || []).length; addNote(`✓ Timesheets updated (${total} entries)`, "team"); }
+  else if (action.action === "budget") { renderBudget(action.data); const total = (action.data.items || []).length; addNote(`✓ Budget updated (${total} line items)`, "budget"); }
+  else if (action.action === "materials") { state.materials = action.data; renderSiteOps(); renderSiteOpsLive(); const total = (action.data.items || []).length; addNote(`✓ Materials updated (${total} items)`, "siteops"); }
+  else if (action.action === "attendance") { state.attendance = action.data; renderSiteOps(); renderSiteOpsLive(); const total = (action.data.records || []).length; addNote(`✓ Attendance updated (${total} records)`, "siteops"); }
+  else if (action.action === "machinery") { state.machinery = action.data; renderSiteOps(); renderSiteOpsLive(); const total = (action.data.items || []).length; addNote(`✓ Machinery updated (${total} items)`, "siteops"); }
+  else if (action.action === "charter") { state.charter = action.data; renderCharter(); addNote(`✓ Project charter updated`, "charter"); }
+  else if (action.action === "crashing") { state.crashing = action.data; renderCrashing(); const total = (action.data.items || []).length; addNote(`✓ Crashing analysis updated (${total} tasks)`, "crashing"); }
+  else if (action.action === "wbs") { state.wbs = action.data; renderWbs(); const total = (action.data.phases || []).length; addNote(`✓ WBS updated (${total} phases)`, "wbs"); }
+  else if (action.action === "inventory") { state.inventory = action.data; renderInventory(); const total = (action.data.items || []).length; addNote(`✓ Inventory updated (${total} items)`, "inventory"); }
 }
 function handleAssistantReply(reply) {
-  const action = extractJsonAction(reply);
-  const spokenText = reply.replace(/```json\s*[\s\S]*?```/i, "").trim();
+  const actions = extractJsonActions(reply);
+  const spokenText = reply.replace(/```json\s*[\s\S]*?```/gi, "").trim();
   if (spokenText) addMessage("assistant", spokenText);
 
-  if (action && action.action) {
-    if (action.action === "gantt" && action.data) { renderGantt(action.data); addNote(`✓ Schedule updated (${action.data.length} tasks)`, "gantt"); setTicker(`DRAFTED SCHEDULE · ${action.data.length} TASKS`, true); }
-    else if (action.action === "burndown" && action.data) { renderBurndown(action.data); addNote(`✓ Burndown chart updated`, "burndown"); setTicker(`DRAFTED BURNDOWN · ${action.data.days.length} DAYS`, true); }
-    else if (action.action === "kanban" && action.data) { renderKanban(action.data); const total = action.data.columns.reduce((n, c) => n + c.cards.length, 0); addNote(`✓ Site task board updated (${total} cards)`, "kanban"); setTicker(`DRAFTED TASK BOARD · ${total} CARDS`, true); }
-    else if (action.action === "raid" && action.data) { renderRaid(action.data); const total = (action.data.items || []).length; addNote(`✓ RAID log updated (${total} items)`, "raid"); setTicker(`DRAFTED RAID LOG · ${total} ITEMS`, true); }
-    else if (action.action === "dailylog" && action.data) { renderDailyLog(action.data); const total = (action.data.entries || []).length; addNote(`✓ Daily log updated (${total} entries)`, "dailylog"); setTicker(`DRAFTED DAILY LOG · ${total} ENTRIES`, true); }
-    else if (action.action === "submittals" && action.data) { renderSubmittals(action.data); const total = (action.data.items || []).length; addNote(`✓ Submittals/RFI log updated (${total} items)`, "submittals"); setTicker(`DRAFTED SUBMITTALS LOG · ${total} ITEMS`, true); }
-    else if (action.action === "punchlist" && action.data) { renderPunchlist(action.data); const total = (action.data.items || []).length; addNote(`✓ Punch list updated (${total} items)`, "punchlist"); setTicker(`DRAFTED PUNCH LIST · ${total} ITEMS`, true); }
-    else if (action.action === "team" && action.data) { state.team = action.data; renderTeam(); const total = (action.data.members || []).length; addNote(`✓ Team updated (${total} members)`, "team"); setTicker(`DRAFTED TEAM · ${total} MEMBERS`, true); }
-    else if (action.action === "timesheet" && action.data) { state.timesheets = action.data; renderTeam(); const total = (action.data.entries || []).length; addNote(`✓ Timesheets updated (${total} entries)`, "team"); setTicker(`DRAFTED TIMESHEETS · ${total} ENTRIES`, true); }
-    else if (action.action === "budget" && action.data) { renderBudget(action.data); const total = (action.data.items || []).length; addNote(`✓ Budget updated (${total} line items)`, "budget"); setTicker(`DRAFTED BUDGET · ${total} ITEMS`, true); }
-    else if (action.action === "materials" && action.data) { state.materials = action.data; renderSiteOps(); renderSiteOpsLive(); const total = (action.data.items || []).length; addNote(`✓ Materials updated (${total} items)`, "siteops"); setTicker(`DRAFTED MATERIALS · ${total} ITEMS`, true); }
-    else if (action.action === "attendance" && action.data) { state.attendance = action.data; renderSiteOps(); renderSiteOpsLive(); const total = (action.data.records || []).length; addNote(`✓ Attendance updated (${total} records)`, "siteops"); setTicker(`DRAFTED ATTENDANCE · ${total} RECORDS`, true); }
-    else if (action.action === "machinery" && action.data) { state.machinery = action.data; renderSiteOps(); renderSiteOpsLive(); const total = (action.data.items || []).length; addNote(`✓ Machinery updated (${total} items)`, "siteops"); setTicker(`DRAFTED MACHINERY · ${total} ITEMS`, true); }
+  if (actions.length) {
+    actions.forEach(applyOneAction);
+    renderDashboard();
+    renderSiteOpsLive();
     persistActiveProject();
+    setTicker(actions.length > 1 ? `UPDATED ${actions.length} TABS AT ONCE` : "UPDATE APPLIED", true);
   } else {
     setTicker("SYSTEM READY · ASK THE ASSISTANT TO PLAN, TRACK, OR CHART YOUR PROJECT");
   }
@@ -1562,3 +2052,4 @@ document.getElementById("brandHome").addEventListener("click", () => { persistAc
 
 // ===== Boot =====
 initProjects();
+checkAuthAndBoot();
