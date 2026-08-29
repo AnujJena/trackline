@@ -1016,6 +1016,28 @@ a { color: var(--accent); text-decoration: none; }
 .machinery-status-row .m-name { font-size: 12px; color: var(--text); flex: 1; }
 .machinery-status-row .m-status { font-family: var(--font-mono); font-size: 10px; color: var(--text-dim); }
 
+/* ---------- Floor Plan ---------- */
+.floorplan-wrap { display: flex; flex-direction: column; gap: 20px; }
+.floorplan-card { background: var(--bg-panel); border: 1px solid var(--border); border-top: 3px solid var(--border-strong); border-radius: var(--radius); padding: 16px; position: relative; }
+.floorplan-card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.floorplan-card-head h2 { font-family: var(--font-label); font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text); margin: 0; }
+.floorplan-image-holder { position: relative; display: inline-block; max-width: 100%; cursor: crosshair; border: 1px solid var(--border); border-radius: 2px; overflow: hidden; }
+.floorplan-image-holder img { display: block; max-width: 100%; height: auto; user-select: none; }
+.floorplan-pin {
+  position: absolute;
+  width: 18px; height: 18px;
+  margin-left: -9px; margin-top: -18px;
+  background: var(--accent);
+  border: 2px solid #1a1a1a;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  cursor: pointer;
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.4);
+}
+.floorplan-pin:hover { background: var(--danger); }
+.floorplan-pin-list { margin-top: 10px; font-size: 12px; color: var(--text-dim); }
+.floorplan-pin-list span { font-family: var(--font-mono); font-size: 10px; color: var(--text-faint); margin-right: 6px; }
+
 /* ---------- New Project / Add Item modal ---------- */
 .modal-overlay {
   position: fixed; inset: 0;

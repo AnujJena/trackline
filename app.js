@@ -13,7 +13,7 @@ let state = {
   dailylog: null, submittals: null, punchlist: null,
   team: null, timesheets: null, budget: null,
   materials: null, attendance: null, machinery: null,
-  charter: null, crashing: null, wbs: null, inventory: null,
+  charter: null, crashing: null, wbs: null, inventory: null, floorplan: null,
 };
 let history = [];
 let chatLogData = [];
@@ -220,6 +220,7 @@ function ensureCollection(type) {
   if (type === "wbsphase" && !state.wbs) state.wbs = { phases: [] };
   if (type === "wbsitem" && !state.wbs) state.wbs = { phases: [] };
   if (type === "inventory" && !state.inventory) state.inventory = { items: [] };
+  if (type === "floorplan" && !state.floorplan) state.floorplan = { plans: [] };
 }
 
 const ADD_TITLES = {
@@ -480,9 +481,10 @@ document.getElementById("addItemSubmit").addEventListener("click", () => {
 
 // ===== Delete row/card (event delegation) =====
 document.addEventListener("click", (e) => {
-  const btn = e.target.closest(".row-delete-btn");
+  const btn = e.target.closest("[data-del]");
   if (!btn) return;
   const [type, id] = btn.dataset.del.split(":");
+  if (type === "floorplanpin" && !confirm("Remove this pin?")) return;
   deleteItem(type, id);
 });
 function deleteItem(type, id) {
@@ -503,6 +505,8 @@ function deleteItem(type, id) {
   else if (type === "wbsphase") { state.wbs.phases = state.wbs.phases.filter((p) => p.id !== id); renderWbs(); }
   else if (type === "wbsitem") { state.wbs.phases.forEach((p) => { p.items = p.items.filter((i) => i.id !== id); }); renderWbs(); }
   else if (type === "inventory") { state.inventory.items = state.inventory.items.filter((i) => i.id !== id); renderInventory(); }
+  else if (type === "floorplan") { state.floorplan.plans = state.floorplan.plans.filter((p) => p.id !== id); renderFloorPlan(); }
+  else if (type === "floorplanpin") { state.floorplan.plans.forEach((p) => { p.pins = p.pins.filter((pin) => pin.id !== id); }); renderFloorPlan(); }
   persistActiveProject();
 }
 
@@ -515,7 +519,7 @@ function newProjectState(name, type) {
     charts: {
       gantt: null, burndown: null, kanban: null, raid: null, dailylog: null, submittals: null, punchlist: null,
       team: null, timesheets: null, budget: null, materials: null, attendance: null, machinery: null,
-      charter: null, crashing: null, wbs: null, inventory: null,
+      charter: null, crashing: null, wbs: null, inventory: null, floorplan: null,
     },
     apiHistory: [], chatLog: [], updatedAt: Date.now(),
   };
@@ -552,6 +556,7 @@ function loadProjectIntoApp(project) {
   state.crashing = project.charts.crashing || null;
   state.wbs = project.charts.wbs || null;
   state.inventory = project.charts.inventory || null;
+  state.floorplan = project.charts.floorplan || null;
   history = project.apiHistory ? [...project.apiHistory] : [];
   chatLogData = project.chatLog ? [...project.chatLog] : [];
 
@@ -569,6 +574,7 @@ function loadProjectIntoApp(project) {
   renderCrashing();
   renderWbs();
   renderInventory();
+  renderFloorPlan();
   renderDashboard();
   renderSiteOpsLive();
   renderCalendar();
@@ -585,7 +591,7 @@ function persistActiveProject() {
     dailylog: state.dailylog, submittals: state.submittals, punchlist: state.punchlist,
     team: state.team, timesheets: state.timesheets, budget: state.budget,
     materials: state.materials, attendance: state.attendance, machinery: state.machinery,
-    charter: state.charter, crashing: state.crashing, wbs: state.wbs, inventory: state.inventory,
+    charter: state.charter, crashing: state.crashing, wbs: state.wbs, inventory: state.inventory, floorplan: state.floorplan,
   };
   projects[activeProjectId].apiHistory = history;
   projects[activeProjectId].chatLog = chatLogData;
@@ -667,6 +673,7 @@ function switchView(name) {
   if (name === "crashing") renderCrashing();
   if (name === "wbs") renderWbs();
   if (name === "inventory") renderInventory();
+  if (name === "floorplan") renderFloorPlan();
 }
 
 // ===== Sample loaders =====
@@ -733,6 +740,7 @@ const REFRESH_RENDERERS = {
   crashing: () => renderCrashing(),
   wbs: () => renderWbs(),
   inventory: () => renderInventory(),
+  floorplan: () => renderFloorPlan(),
   calendar: () => renderCalendar(),
 };
 document.querySelectorAll("[data-refresh]").forEach((btn) => {
@@ -1464,6 +1472,91 @@ function renderInventory() {
   }).join("");
   wrap.innerHTML = `<table class="log-table"><thead><tr><th>Item</th><th>Category</th><th>On Hand</th><th>Reorder Level</th><th>Location</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
 }
+
+// ===== Floor Plan (image upload + click-to-pin annotations) =====
+function renderFloorPlan() {
+  const wrap = document.getElementById("floorplanWrap");
+  if (!wrap) return;
+  const plans = (state.floorplan && state.floorplan.plans) || [];
+  if (!plans.length) {
+    wrap.innerHTML = `<div class="empty-state" id="floorplanEmpty"><p>No floor plans uploaded yet.</p><button class="btn-ghost" id="floorplanEmptyAdd">＋ Add Floor Plan</button></div>`;
+    const btn = document.getElementById("floorplanEmptyAdd");
+    if (btn) btn.addEventListener("click", openFloorPlanModal);
+    return;
+  }
+  wrap.innerHTML = plans.map((p) => `
+    <div class="floorplan-card">
+      <div class="floorplan-card-head">
+        <h2>${escapeHtml(p.name)}</h2>
+        <button class="row-delete-btn" data-del="floorplan:${p.id}" title="Delete floor plan">×</button>
+      </div>
+      <div class="floorplan-image-holder" data-plan-id="${p.id}">
+        <img src="${p.imageDataUrl}" alt="${escapeHtml(p.name)}" draggable="false">
+        ${(p.pins || []).map((pin) => `<span class="floorplan-pin" data-del="floorplanpin:${pin.id}" style="left:${pin.x}%; top:${pin.y}%;" title="${escapeHtml(pin.label)} (click to remove)"></span>`).join("")}
+      </div>
+      <div class="floorplan-pin-list">${(p.pins || []).map((pin, i) => `<span>#${i + 1}</span>${escapeHtml(pin.label)}`).join("<br>") || "No pins yet — click on the plan to add one."}</div>
+    </div>`).join("");
+
+  wrap.querySelectorAll(".floorplan-image-holder").forEach((holder) => {
+    holder.addEventListener("click", (e) => {
+      if (e.target.closest(".floorplan-pin")) return; // pin's own click (delete) handles this via delegation
+      const planId = holder.dataset.planId;
+      const rect = holder.getBoundingClientRect();
+      const x = ((e.clientX - rect.left) / rect.width) * 100;
+      const y = ((e.clientY - rect.top) / rect.height) * 100;
+      const label = prompt("Label for this pin (e.g. a punch item or RFI location):");
+      if (!label) return;
+      const plan = state.floorplan.plans.find((p) => p.id === planId);
+      if (plan) {
+        plan.pins.push({ id: "pin" + Date.now(), x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10, label });
+        renderFloorPlan();
+        persistActiveProject();
+      }
+    });
+  });
+}
+
+function resizeImageFile(file, maxWidth, callback) {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, maxWidth / img.width);
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      callback(canvas.toDataURL("image/jpeg", 0.82));
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function openFloorPlanModal() {
+  document.getElementById("fpName").value = "";
+  document.getElementById("fpFile").value = "";
+  document.getElementById("floorPlanModalOverlay").style.display = "flex";
+  document.getElementById("fpName").focus();
+}
+function closeFloorPlanModal() { document.getElementById("floorPlanModalOverlay").style.display = "none"; }
+document.getElementById("btnAddFloorPlan").addEventListener("click", openFloorPlanModal);
+document.getElementById("floorPlanCancel").addEventListener("click", closeFloorPlanModal);
+document.getElementById("floorPlanSubmit").addEventListener("click", () => {
+  const name = document.getElementById("fpName").value.trim();
+  const fileInput = document.getElementById("fpFile");
+  const file = fileInput.files[0];
+  if (!name) { alert("Please name this floor plan (e.g. a level or unit)."); return; }
+  if (!file) { alert("Please choose an image file."); return; }
+  ensureCollection("floorplan");
+  resizeImageFile(file, 1600, (dataUrl) => {
+    state.floorplan.plans.push({ id: "fp" + Date.now(), name, imageDataUrl: dataUrl, pins: [] });
+    renderFloorPlan();
+    persistActiveProject();
+    closeFloorPlanModal();
+  });
+});
 
 // ===== Dashboard rendering (computed, read-only) =====
 const STAT_ICONS = {

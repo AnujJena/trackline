@@ -26,6 +26,7 @@ A project console built specifically for construction project management. Everyt
 - **Project Crashing** — enter each task's normal vs. crash duration/cost; Trackline computes cost-per-day-saved and flags the three cheapest tasks to compress first
 - **WBS** — a two-level Work Breakdown Structure (phases → work packages) with standard WBS numbering
 - **Inventory** — stock on hand with reorder levels; low-stock items are flagged automatically
+- **Floor Plan** — upload one or more floor plan images (per level/unit); click anywhere on the image to drop a labeled pin (e.g. a punch item or RFI location), click a pin to remove it. This one is manual-only — there's no AI drafting or spreadsheet import for it, since it's image-based rather than structured data.
 
 Every row/card has a small "×" to delete it, and every tab has a "⟳ Refresh" button that reloads the tab from saved data. **The AI assistant can update several tabs from a single request** — e.g. "set up this whole project" can populate the schedule, budget, and team roster together in one reply. It's reachable both as an embedded copilot inside the workspace and as a dedicated full-page chat with a "previous chats" sidebar.
 
@@ -70,6 +71,7 @@ You'll get a free URL like `https://trackline-yourname.vercel.app`.
 
 - The API key only ever lives on the server (`api/chat.js`) — never sent to the browser, so it's safe to deploy publicly.
 - The `admin`/`admin` login is a front-end-only gate. Do not rely on it to protect anything sensitive.
+- Floor plan images are resized to a max width of 1600px and compressed before being stored in localStorage — this keeps things reasonable, but browsers cap localStorage at roughly 5–10MB per site, so avoid uploading many large images.
 - To change the assistant's tone or the construction knowledge it draws on, edit `BASE_SYSTEM_PROMPT` in `api/chat.js`.
 - Free-tier Vercel functions have a 10-second timeout; if you raise `max_tokens` a lot, very long replies could occasionally hit that limit.
 - Costs: Anthropic bills per API call based on tokens used, not Vercel (static hosting + serverless functions are free at this scale).

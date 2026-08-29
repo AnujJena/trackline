@@ -235,6 +235,7 @@
     <button class="tab" data-view="crashing" role="tab" aria-selected="false">Crashing</button>
     <button class="tab" data-view="wbs" role="tab" aria-selected="false">WBS</button>
     <button class="tab" data-view="inventory" role="tab" aria-selected="false">Inventory</button>
+    <button class="tab" data-view="floorplan" role="tab" aria-selected="false">Floor Plan</button>
     <button class="tab" data-view="calendar" role="tab" aria-selected="false">Calendar</button>
   </nav>
   <div class="status-chip" id="apiStatus"><span class="dot" id="apiDot"></span><span id="apiStatusText">Checking key…</span></div>
@@ -491,6 +492,19 @@
       <div class="inventory-wrap" id="inventoryWrap"><div class="empty-state" id="inventoryEmpty"><p>No inventory yet.</p><button class="btn-ghost" data-sample="inventory">Load sample inventory</button></div></div>
     </div>
 
+    <div class="view" id="view-floorplan">
+      <div class="view-head">
+        <div><h1>Floor Plan</h1><p class="view-sub">Upload a floor plan image, then click anywhere on it to drop a labeled pin (e.g. a punch item or RFI location). Click a pin to remove it.</p></div>
+        <div class="view-actions">
+          <button class="btn-ghost" id="btnAddFloorPlan">＋ Add Floor Plan</button>
+          <button class="btn-ghost" data-refresh="floorplan">⟳ Refresh</button>
+        </div>
+      </div>
+      <div class="floorplan-wrap" id="floorplanWrap">
+        <div class="empty-state" id="floorplanEmpty"><p>No floor plans uploaded yet.</p><button class="btn-ghost" id="floorplanEmptyAdd">＋ Add Floor Plan</button></div>
+      </div>
+    </div>
+
     <div class="view" id="view-calendar">
       <div class="view-head">
         <div><h1>Calendar</h1><p class="view-sub">Every dated item across your schedule, daily log, submittals, and budget — in one place.</p></div>
@@ -539,6 +553,19 @@
     <h2 id="addItemModalTitle">Add Item</h2>
     <div id="addItemModalFields"></div>
     <div class="modal-actions"><button class="btn-secondary" id="addItemCancel">Cancel</button><button class="btn-primary" id="addItemSubmit">Add</button></div>
+  </div>
+</div>
+
+<!-- ===================== ADD FLOOR PLAN MODAL (needs file handling, kept separate) ===================== -->
+<div class="modal-overlay" id="floorPlanModalOverlay" style="display:none;">
+  <div class="modal-box">
+    <h2>Add Floor Plan</h2>
+    <label for="fpName">Name / level</label>
+    <input type="text" id="fpName" placeholder="e.g. Level 1 — Ground Floor">
+    <label for="fpFile">Image file</label>
+    <input type="file" id="fpFile" accept="image/*">
+    <p class="login-note" style="margin-top:12px;">Images are resized and stored in this browser's local storage — very large or many images may hit the browser's storage limit.</p>
+    <div class="modal-actions"><button class="btn-secondary" id="floorPlanCancel">Cancel</button><button class="btn-primary" id="floorPlanSubmit">Add</button></div>
   </div>
 </div>
 
