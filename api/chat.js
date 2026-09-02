@@ -168,7 +168,7 @@ module.exports = async (req, res) => {
       headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: 1500,
+        max_tokens: 2200,
         system: buildSystemPrompt(charts, projectType),
         messages: messages.map((m) => ({ role: m.role, content: m.content })),
       }),
