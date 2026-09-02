@@ -479,6 +479,7 @@ document.getElementById("addItemSubmit").addEventListener("click", () => {
 
   persistActiveProject();
   closeAddModal();
+  triggerPropagationCheck(`Added a new entry to ${MODULE_LABEL_FOR_TYPE[type] || type}.`);
 });
 
 // ===== Delete row/card (event delegation) =====
@@ -510,6 +511,7 @@ function deleteItem(type, id) {
   else if (type === "floorplan") { state.floorplan.plans = state.floorplan.plans.filter((p) => p.id !== id); renderFloorPlan(); }
   else if (type === "floorplanpin") { state.floorplan.plans.forEach((p) => { p.pins = p.pins.filter((pin) => pin.id !== id); }); renderFloorPlan(); }
   persistActiveProject();
+  if (type !== "floorplanpin") triggerPropagationCheck(`Deleted an item from ${MODULE_LABEL_FOR_TYPE[type] || type}.`);
 }
 
 // ===== Projects (localStorage) =====
@@ -784,7 +786,7 @@ function renderGantt(tasks) {
         <div class="gantt-task-name" title="${escapeHtml(t.name)}">${escapeHtml(t.name)}</div>
         <div class="gantt-track">
           <div class="gantt-track-bg"></div>
-          <div class="gantt-bar" style="left:${leftPct}%; width:${widthPct}%;"><div class="gantt-bar-fill" style="width:${t.progress || 0}%;"></div></div>
+          <div class="gantt-bar" data-task-id="${t.id}" style="left:${leftPct}%; width:${widthPct}%;" title="Drag to move · drag the edges to resize"><div class="gantt-bar-fill" style="width:${t.progress || 0}%;" title="Drag to set progress"></div></div>
           <div class="gantt-bar-label" style="left:calc(${leftPct}% + 8px)">${escapeHtml(t.name)} · ${t.progress || 0}%</div>
         </div>
         <button class="row-delete-btn" data-del="gantt:${t.id}" title="Delete task">×</button>
@@ -792,6 +794,95 @@ function renderGantt(tasks) {
   });
   wrap.innerHTML = `<div class="gantt-header"><div>Task</div><div class="gantt-scale">${scaleHtml}</div><div></div></div>${rows}`;
   wrap.style.width = Math.max(640, 260 + weekCount * 90) + "px";
+  attachGanttDragEvents(minDate, totalDays);
+}
+
+function attachGanttDragEvents(minDate, totalDays) {
+  document.querySelectorAll(".gantt-bar").forEach((barEl) => {
+    const taskId = barEl.dataset.taskId;
+    const track = barEl.parentElement;
+    const fillEl = barEl.querySelector(".gantt-bar-fill");
+
+    barEl.addEventListener("pointerdown", (e) => {
+      const trackRect = track.getBoundingClientRect();
+      const barRect = barEl.getBoundingClientRect();
+      const pxPerDay = trackRect.width / totalDays;
+      const edgeZone = 8;
+      const offsetInBar = e.clientX - barRect.left;
+      const mode = offsetInBar <= edgeZone ? "resize-start" : (barRect.width - offsetInBar <= edgeZone ? "resize-end" : "move");
+      const startX = e.clientX;
+      const task = state.gantt.find((t) => String(t.id) === taskId);
+      if (!task) return;
+      const origStart = new Date(task.start);
+      const origEnd = new Date(task.end);
+      barEl.setPointerCapture(e.pointerId);
+      document.body.style.cursor = mode === "move" ? "grabbing" : "ew-resize";
+
+      function computeDates(deltaDays) {
+        let newStart = origStart, newEnd = origEnd;
+        if (mode === "move") {
+          newStart = new Date(origStart); newStart.setDate(newStart.getDate() + deltaDays);
+          newEnd = new Date(origEnd); newEnd.setDate(newEnd.getDate() + deltaDays);
+        } else if (mode === "resize-end") {
+          newEnd = new Date(origEnd); newEnd.setDate(newEnd.getDate() + deltaDays);
+          if (newEnd < origStart) newEnd = new Date(origStart);
+        } else {
+          newStart = new Date(origStart); newStart.setDate(newStart.getDate() + deltaDays);
+          if (newStart > origEnd) newStart = new Date(origEnd);
+        }
+        return { newStart, newEnd };
+      }
+      function onMove(ev) {
+        const deltaDays = Math.round((ev.clientX - startX) / pxPerDay);
+        const { newStart, newEnd } = computeDates(deltaDays);
+        const leftOffset = Math.round((newStart - minDate) / 86400000);
+        const dur = Math.round((newEnd - newStart) / 86400000) + 1;
+        barEl.style.left = ((leftOffset / totalDays) * 100) + "%";
+        barEl.style.width = ((dur / totalDays) * 100) + "%";
+      }
+      function onUp(ev) {
+        barEl.releasePointerCapture(e.pointerId);
+        document.body.style.cursor = "";
+        barEl.removeEventListener("pointermove", onMove);
+        const deltaDays = Math.round((ev.clientX - startX) / pxPerDay);
+        if (deltaDays === 0) return;
+        const { newStart, newEnd } = computeDates(deltaDays);
+        const oldStartStr = task.start, oldEndStr = task.end;
+        task.start = newStart.toISOString().slice(0, 10);
+        task.end = newEnd.toISOString().slice(0, 10);
+        renderGantt(state.gantt);
+        persistActiveProject();
+        triggerPropagationCheck(`Changed the schedule for task "${task.name}": now ${task.start} to ${task.end} (was ${oldStartStr} to ${oldEndStr}).`);
+      }
+      barEl.addEventListener("pointermove", onMove);
+      barEl.addEventListener("pointerup", onUp, { once: true });
+    });
+
+    if (fillEl) {
+      fillEl.addEventListener("pointerdown", (e) => {
+        e.stopPropagation();
+        const barRect = barEl.getBoundingClientRect();
+        fillEl.setPointerCapture(e.pointerId);
+        function pctFromEvent(ev) { return Math.max(0, Math.min(100, Math.round(((ev.clientX - barRect.left) / barRect.width) * 100))); }
+        function onMove(ev) { fillEl.style.width = pctFromEvent(ev) + "%"; }
+        function onUp(ev) {
+          fillEl.releasePointerCapture(e.pointerId);
+          fillEl.removeEventListener("pointermove", onMove);
+          const pct = pctFromEvent(ev);
+          const task = state.gantt.find((t) => String(t.id) === taskId);
+          if (task) {
+            const oldProgress = task.progress || 0;
+            task.progress = pct;
+            renderGantt(state.gantt);
+            persistActiveProject();
+            if (pct !== oldProgress) triggerPropagationCheck(`Changed progress on task "${task.name}" from ${oldProgress}% to ${pct}%.`);
+          }
+        }
+        fillEl.addEventListener("pointermove", onMove);
+        fillEl.addEventListener("pointerup", onUp, { once: true });
+      });
+    }
+  });
 }
 
 // ===== Burndown rendering =====
@@ -867,6 +958,7 @@ function moveCard(cardId, targetColIdx) {
   if (moved) state.kanban.columns[targetColIdx].cards.push(moved);
   renderKanban(state.kanban);
   persistActiveProject();
+  if (moved) triggerPropagationCheck(`Moved the site task card "${moved.title}" to column "${state.kanban.columns[targetColIdx].name}".`);
 }
 
 // ===== RAID rendering =====
@@ -894,6 +986,7 @@ function updateItemStatus(module, id, newStatus) {
   else if (module === "machine") { const item = (state.machinery.items || []).find((i) => i.id === id); if (item) { item.status = newStatus; renderSiteOps(); renderSiteOpsLive(); } }
   else if (module === "attendance") { const rec = (state.attendance.records || []).find((r) => r.id === id); if (rec) { rec.status = newStatus; renderSiteOps(); renderSiteOpsLive(); } }
   persistActiveProject();
+  triggerPropagationCheck(`Changed a ${MODULE_LABEL_FOR_TYPE[module] || module} item's status to "${newStatus}".`);
 }
 
 function renderRaid(data) {
@@ -1213,6 +1306,7 @@ document.getElementById("sheetUploadInput").addEventListener("change", (e) => {
       renderSiteOpsLive();
       persistActiveProject();
       setTicker("SITE OPS DATA IMPORTED FROM SPREADSHEET", true);
+      triggerPropagationCheck("Imported Site Ops data (materials, attendance, and/or machinery) via spreadsheet, replacing what was there.");
     } catch (err) {
       alert("Couldn't read that file — make sure it's an .xlsx export with Materials, Attendance, and/or Machinery tabs matching the template.");
     }
@@ -1362,6 +1456,7 @@ document.getElementById("genericXlUploadInput").addEventListener("change", (e) =
       renderSiteOpsLive();
       persistActiveProject();
       setTicker(`${schema.sheet.toUpperCase()} DATA IMPORTED FROM SPREADSHEET`, true);
+      triggerPropagationCheck(`Imported ${schema.sheet} data via spreadsheet, replacing what was there.`);
     } catch (err) {
       alert(`Couldn't read that file — make sure it's an .xlsx export with a "${schema.sheet}" tab matching the template.`);
     }
@@ -1488,10 +1583,18 @@ function renderFloorPlan() {
   }
   wrap.innerHTML = plans.map((p) => {
     const isSchematic = p.type === "schematic";
+    const widthFt = p.widthFt || 40, heightFt = p.heightFt || 25;
     const pinsHtml = (p.pins || []).map((pin) => `<span class="floorplan-pin" data-del="floorplanpin:${pin.id}" style="left:${pin.x}%; top:${pin.y}%;" title="${escapeHtml(pin.label)} (click to remove)"></span>`).join("");
     const canvasHtml = isSchematic
       ? `<div class="floorplan-image-holder floorplan-schematic" data-plan-id="${p.id}">
-          ${(p.rooms || []).map((r) => `<div class="floorplan-room" style="left:${r.x}%; top:${r.y}%; width:${r.width}%; height:${r.height}%;">${escapeHtml(r.name)}</div>`).join("")}
+          ${(p.rooms || []).map((r) => {
+            const rw = ((r.width / 100) * widthFt).toFixed(1);
+            const rh = ((r.height / 100) * heightFt).toFixed(1);
+            return `<div class="floorplan-room" data-room-id="${r.id}" style="left:${r.x}%; top:${r.y}%; width:${r.width}%; height:${r.height}%;">
+              <div class="floorplan-room-label">${escapeHtml(r.name)}<br><span class="floorplan-room-dim">${rw}' × ${rh}'</span></div>
+              <div class="floorplan-room-handle" title="Drag to resize"></div>
+            </div>`;
+          }).join("")}
           ${pinsHtml}
         </div>`
       : `<div class="floorplan-image-holder" data-plan-id="${p.id}">
@@ -1501,7 +1604,7 @@ function renderFloorPlan() {
     return `
     <div class="floorplan-card">
       <div class="floorplan-card-head">
-        <h2>${escapeHtml(p.name)}${isSchematic ? ' <span class="crash-recommend">AI schematic — not to scale</span>' : ""}</h2>
+        <h2>${escapeHtml(p.name)}${isSchematic ? ` <span class="crash-recommend">AI schematic — ${widthFt}' × ${heightFt}' overall (${(widthFt * heightFt).toLocaleString("en-US")} sq ft) · not to scale</span>` : ""}</h2>
         <button class="row-delete-btn" data-del="floorplan:${p.id}" title="Delete floor plan">×</button>
       </div>
       ${canvasHtml}
@@ -1511,7 +1614,7 @@ function renderFloorPlan() {
 
   wrap.querySelectorAll(".floorplan-image-holder").forEach((holder) => {
     holder.addEventListener("click", (e) => {
-      if (e.target.closest(".floorplan-pin")) return; // pin's own click (delete) handles this via delegation
+      if (e.target.closest(".floorplan-pin") || e.target.closest(".floorplan-room")) return; // handled by their own listeners
       const planId = holder.dataset.planId;
       const rect = holder.getBoundingClientRect();
       const x = ((e.clientX - rect.left) / rect.width) * 100;
@@ -1524,6 +1627,88 @@ function renderFloorPlan() {
         renderFloorPlan();
         persistActiveProject();
       }
+    });
+  });
+
+  plans.filter((p) => p.type === "schematic").forEach((p) => attachFloorPlanRoomEvents(p));
+}
+
+function attachFloorPlanRoomEvents(plan) {
+  const holder = document.querySelector(`.floorplan-schematic[data-plan-id="${plan.id}"]`);
+  if (!holder) return;
+  holder.querySelectorAll(".floorplan-room").forEach((roomEl) => {
+    const roomId = roomEl.dataset.roomId;
+    roomEl.addEventListener("click", (e) => e.stopPropagation()); // don't let a click/drag on a room also drop a pin
+
+    roomEl.addEventListener("pointerdown", (e) => {
+      if (e.target.closest(".floorplan-room-handle")) return;
+      const holderRect = holder.getBoundingClientRect();
+      const room = plan.rooms.find((r) => r.id === roomId);
+      if (!room) return;
+      const startX = e.clientX, startY = e.clientY;
+      const origX = room.x, origY = room.y;
+      roomEl.setPointerCapture(e.pointerId);
+      function clamp(x, y) {
+        return { nx: Math.max(0, Math.min(100 - room.width, x)), ny: Math.max(0, Math.min(100 - room.height, y)) };
+      }
+      function onMove(ev) {
+        const dxPct = ((ev.clientX - startX) / holderRect.width) * 100;
+        const dyPct = ((ev.clientY - startY) / holderRect.height) * 100;
+        const { nx, ny } = clamp(origX + dxPct, origY + dyPct);
+        roomEl.style.left = nx + "%";
+        roomEl.style.top = ny + "%";
+      }
+      function onUp(ev) {
+        roomEl.releasePointerCapture(e.pointerId);
+        roomEl.removeEventListener("pointermove", onMove);
+        const dxPct = ((ev.clientX - startX) / holderRect.width) * 100;
+        const dyPct = ((ev.clientY - startY) / holderRect.height) * 100;
+        const { nx, ny } = clamp(origX + dxPct, origY + dyPct);
+        room.x = Math.round(nx * 10) / 10;
+        room.y = Math.round(ny * 10) / 10;
+        renderFloorPlan();
+        persistActiveProject();
+        triggerPropagationCheck(`Moved the room "${room.name}" in floor plan "${plan.name}".`);
+      }
+      roomEl.addEventListener("pointermove", onMove);
+      roomEl.addEventListener("pointerup", onUp, { once: true });
+    });
+
+    const handle = roomEl.querySelector(".floorplan-room-handle");
+    if (!handle) return;
+    handle.addEventListener("click", (e) => e.stopPropagation());
+    handle.addEventListener("pointerdown", (e) => {
+      e.stopPropagation();
+      const holderRect = holder.getBoundingClientRect();
+      const room = plan.rooms.find((r) => r.id === roomId);
+      if (!room) return;
+      const startX = e.clientX, startY = e.clientY;
+      const origW = room.width, origH = room.height;
+      handle.setPointerCapture(e.pointerId);
+      function clampSize(w, h) {
+        return { nw: Math.max(6, Math.min(100 - room.x, w)), nh: Math.max(6, Math.min(100 - room.y, h)) };
+      }
+      function onMove(ev) {
+        const dwPct = ((ev.clientX - startX) / holderRect.width) * 100;
+        const dhPct = ((ev.clientY - startY) / holderRect.height) * 100;
+        const { nw, nh } = clampSize(origW + dwPct, origH + dhPct);
+        roomEl.style.width = nw + "%";
+        roomEl.style.height = nh + "%";
+      }
+      function onUp(ev) {
+        handle.releasePointerCapture(e.pointerId);
+        handle.removeEventListener("pointermove", onMove);
+        const dwPct = ((ev.clientX - startX) / holderRect.width) * 100;
+        const dhPct = ((ev.clientY - startY) / holderRect.height) * 100;
+        const { nw, nh } = clampSize(origW + dwPct, origH + dhPct);
+        room.width = Math.round(nw * 10) / 10;
+        room.height = Math.round(nh * 10) / 10;
+        renderFloorPlan();
+        persistActiveProject();
+        triggerPropagationCheck(`Resized the room "${room.name}" in floor plan "${plan.name}".`);
+      }
+      handle.addEventListener("pointermove", onMove);
+      handle.addEventListener("pointerup", onUp, { once: true });
     });
   });
 }
@@ -2086,10 +2271,12 @@ function applyOneAction(action) {
   else if (action.action === "inventory") { state.inventory = action.data; renderInventory(); const total = (action.data.items || []).length; addNote(`✓ Inventory updated (${total} items)`, "inventory"); }
   else if (action.action === "floorplan") {
     ensureCollection("floorplan");
+    const widthFt = Number(action.data.widthFt) || 40;
+    const heightFt = Number(action.data.heightFt) || 25;
     const rooms = (action.data.rooms || []).map((r, i) => ({ id: "room" + Date.now() + i, name: r.name, x: r.x, y: r.y, width: r.width, height: r.height }));
-    state.floorplan.plans.push({ id: "fp" + Date.now(), name: action.data.name || "AI Floor Plan", type: "schematic", rooms, pins: [] });
+    state.floorplan.plans.push({ id: "fp" + Date.now(), name: action.data.name || "AI Floor Plan", type: "schematic", widthFt, heightFt, rooms, pins: [] });
     renderFloorPlan();
-    addNote(`✓ Schematic floor plan drafted (${rooms.length} rooms) — a labeled room-layout diagram, not a photorealistic image`, "floorplan");
+    addNote(`✓ Schematic floor plan drafted (${rooms.length} rooms, ${widthFt}' × ${heightFt}' overall) — a labeled room-layout diagram, not a photorealistic image`, "floorplan");
   }
 }
 function handleAssistantReply(reply) {
@@ -2105,6 +2292,98 @@ function handleAssistantReply(reply) {
     setTicker(actions.length > 1 ? `UPDATED ${actions.length} TABS AT ONCE` : "UPDATE APPLIED", true);
   } else {
     setTicker("SYSTEM READY · ASK THE ASSISTANT TO PLAN, TRACK, OR CHART YOUR PROJECT");
+  }
+}
+
+// ===== Cross-tab propagation check (AI reviews manual edits for related updates elsewhere) =====
+const MODULE_LABEL_FOR_TYPE = {
+  gantt: "Schedule", kanban: "Site Tasks", raid: "RAID Log", dailylog: "Daily Log", submittals: "Submittals/RFI",
+  punchlist: "Punch List", burndown: "Progress", teammember: "Team", timesheet: "Team (timesheet)", budget: "Budget",
+  material: "Site Ops (materials)", attendance: "Site Ops (attendance)", machine: "Site Ops (machinery)",
+  crashing: "Crashing", wbsphase: "WBS", wbsitem: "WBS", inventory: "Inventory",
+  floorplan: "Floor Plan", floorplanpin: "Floor Plan (pin)",
+};
+function summarizeActionShort(a) {
+  const d = a.data || {};
+  if (a.action === "gantt") return `${(d || []).length} task(s)`;
+  if (a.action === "kanban") return `${(d.columns || []).reduce((n, c) => n + c.cards.length, 0)} card(s)`;
+  if (a.action === "burndown") return `${(d.days || []).length} day(s)`;
+  if (a.action === "raid") return `${(d.items || []).length} item(s)`;
+  if (a.action === "dailylog") return `${(d.entries || []).length} entr(y/ies)`;
+  if (a.action === "submittals") return `${(d.items || []).length} item(s)`;
+  if (a.action === "punchlist") return `${(d.items || []).length} item(s)`;
+  if (a.action === "team") return `${(d.members || []).length} member(s)`;
+  if (a.action === "timesheet") return `${(d.entries || []).length} entr(y/ies)`;
+  if (a.action === "budget") return `${(d.items || []).length} line item(s)`;
+  if (a.action === "materials") return `${(d.items || []).length} item(s)`;
+  if (a.action === "attendance") return `${(d.records || []).length} record(s)`;
+  if (a.action === "machinery") return `${(d.items || []).length} item(s)`;
+  if (a.action === "charter") return "charter fields";
+  if (a.action === "crashing") return `${(d.items || []).length} task(s)`;
+  if (a.action === "wbs") return `${(d.phases || []).length} phase(s)`;
+  if (a.action === "inventory") return `${(d.items || []).length} item(s)`;
+  if (a.action === "floorplan") return `${(d.rooms || []).length} room(s)`;
+  return "";
+}
+let pendingProposedActions = [];
+function showProposedUpdatesModal(actions, introText) {
+  pendingProposedActions = actions;
+  document.getElementById("proposedUpdatesIntro").textContent = introText || "Based on your recent edit, the assistant suggests these related updates:";
+  document.getElementById("proposedUpdatesList").innerHTML = actions.map((a, i) => `
+    <label style="display:flex; gap:8px; align-items:flex-start; padding:9px 0; border-bottom:1px solid var(--border); font-size:13px; cursor:pointer;">
+      <input type="checkbox" checked data-idx="${i}" style="margin-top:3px;">
+      <span><strong>${VIEW_LABELS[a.action] || a.action}</strong><br><span style="color:var(--text-dim); font-size:12px;">${escapeHtml(summarizeActionShort(a))}</span></span>
+    </label>`).join("");
+  document.getElementById("proposedUpdatesOverlay").style.display = "flex";
+}
+function closeProposedUpdatesModal() {
+  document.getElementById("proposedUpdatesOverlay").style.display = "none";
+  pendingProposedActions = [];
+}
+document.getElementById("proposedUpdatesDismiss").addEventListener("click", closeProposedUpdatesModal);
+document.getElementById("proposedUpdatesApply").addEventListener("click", () => {
+  const checkedIdx = [...document.querySelectorAll('#proposedUpdatesList input[type="checkbox"]:checked')].map((cb) => Number(cb.dataset.idx));
+  checkedIdx.forEach((i) => applyOneAction(pendingProposedActions[i]));
+  renderDashboard();
+  renderSiteOpsLive();
+  persistActiveProject();
+  setTicker(checkedIdx.length ? `APPLIED ${checkedIdx.length} RELATED UPDATE${checkedIdx.length === 1 ? "" : "S"}` : "NO UPDATES APPLIED", true);
+  closeProposedUpdatesModal();
+});
+
+let propagationInFlight = false;
+async function triggerPropagationCheck(description) {
+  if (propagationInFlight) return; // avoid overlapping checks if edits happen in quick succession
+  propagationInFlight = true;
+  const prevTicker = document.getElementById("tickerText").textContent;
+  setTicker("CHECKING FOR RELATED UPDATES…", true);
+  try {
+    const projects = loadAllProjects();
+    const projectType = (projects[activeProjectId] && projects[activeProjectId].type) || "";
+    const res = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        messages: [{ role: "user", content: `The user just made this edit directly in the app (not through chat): ${description}` }],
+        charts: state,
+        projectType,
+        mode: "propagation",
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) { setTicker(prevTicker); return; }
+    const reply = data.reply || "";
+    const actions = extractJsonActions(reply);
+    if (actions.length) {
+      showProposedUpdatesModal(actions, reply.replace(/```json\s*[\s\S]*?```/gi, "").trim());
+      setTicker(`FOUND ${actions.length} RELATED UPDATE${actions.length === 1 ? "" : "S"} · REVIEW & APPLY`, true);
+    } else {
+      setTicker("SYSTEM READY · NO RELATED UPDATES NEEDED", true);
+    }
+  } catch (e) {
+    setTicker(prevTicker);
+  } finally {
+    propagationInFlight = false;
   }
 }
 

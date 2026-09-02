@@ -715,11 +715,15 @@ a { color: var(--accent); text-decoration: none; }
   background: var(--accent-dim);
   border: 1px solid var(--accent);
   overflow: hidden;
+  cursor: grab;
+  touch-action: none;
 }
 .gantt-bar-fill {
   height: 100%;
   background: var(--accent);
   opacity: 0.55;
+  cursor: ew-resize;
+  touch-action: none;
 }
 .gantt-bar-label {
   position: absolute;
@@ -1064,7 +1068,22 @@ a { color: var(--accent); text-decoration: none; }
   padding: 3px;
   overflow: hidden;
   line-height: 1.2;
+  cursor: grab;
+  touch-action: none;
 }
+.floorplan-room-label { pointer-events: none; }
+.floorplan-room-dim { color: var(--text-faint); font-size: 9px; }
+.floorplan-room-handle {
+  position: absolute;
+  right: 0; bottom: 0;
+  width: 12px; height: 12px;
+  background: var(--accent);
+  border-top-left-radius: 3px;
+  cursor: nwse-resize;
+  touch-action: none;
+  opacity: 0.85;
+}
+.floorplan-room-handle:hover { opacity: 1; }
 
 /* ---------- New Project / Add Item modal ---------- */
 .modal-overlay {
