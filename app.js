@@ -1481,23 +1481,33 @@ function renderFloorPlan() {
   if (!wrap) return;
   const plans = (state.floorplan && state.floorplan.plans) || [];
   if (!plans.length) {
-    wrap.innerHTML = `<div class="empty-state" id="floorplanEmpty"><p>No floor plans uploaded yet.</p><button class="btn-ghost" id="floorplanEmptyAdd">＋ Add Floor Plan</button></div>`;
+    wrap.innerHTML = `<div class="empty-state" id="floorplanEmpty"><p>No floor plans yet.</p><button class="btn-ghost" id="floorplanEmptyAdd">＋ Add Floor Plan</button></div>`;
     const btn = document.getElementById("floorplanEmptyAdd");
     if (btn) btn.addEventListener("click", openFloorPlanModal);
     return;
   }
-  wrap.innerHTML = plans.map((p) => `
+  wrap.innerHTML = plans.map((p) => {
+    const isSchematic = p.type === "schematic";
+    const pinsHtml = (p.pins || []).map((pin) => `<span class="floorplan-pin" data-del="floorplanpin:${pin.id}" style="left:${pin.x}%; top:${pin.y}%;" title="${escapeHtml(pin.label)} (click to remove)"></span>`).join("");
+    const canvasHtml = isSchematic
+      ? `<div class="floorplan-image-holder floorplan-schematic" data-plan-id="${p.id}">
+          ${(p.rooms || []).map((r) => `<div class="floorplan-room" style="left:${r.x}%; top:${r.y}%; width:${r.width}%; height:${r.height}%;">${escapeHtml(r.name)}</div>`).join("")}
+          ${pinsHtml}
+        </div>`
+      : `<div class="floorplan-image-holder" data-plan-id="${p.id}">
+          <img src="${p.imageDataUrl}" alt="${escapeHtml(p.name)}" draggable="false">
+          ${pinsHtml}
+        </div>`;
+    return `
     <div class="floorplan-card">
       <div class="floorplan-card-head">
-        <h2>${escapeHtml(p.name)}</h2>
+        <h2>${escapeHtml(p.name)}${isSchematic ? ' <span class="crash-recommend">AI schematic — not to scale</span>' : ""}</h2>
         <button class="row-delete-btn" data-del="floorplan:${p.id}" title="Delete floor plan">×</button>
       </div>
-      <div class="floorplan-image-holder" data-plan-id="${p.id}">
-        <img src="${p.imageDataUrl}" alt="${escapeHtml(p.name)}" draggable="false">
-        ${(p.pins || []).map((pin) => `<span class="floorplan-pin" data-del="floorplanpin:${pin.id}" style="left:${pin.x}%; top:${pin.y}%;" title="${escapeHtml(pin.label)} (click to remove)"></span>`).join("")}
-      </div>
+      ${canvasHtml}
       <div class="floorplan-pin-list">${(p.pins || []).map((pin, i) => `<span>#${i + 1}</span>${escapeHtml(pin.label)}`).join("<br>") || "No pins yet — click on the plan to add one."}</div>
-    </div>`).join("");
+    </div>`;
+  }).join("");
 
   wrap.querySelectorAll(".floorplan-image-holder").forEach((holder) => {
     holder.addEventListener("click", (e) => {
@@ -1553,7 +1563,7 @@ document.getElementById("floorPlanSubmit").addEventListener("click", () => {
   if (!file) { alert("Please choose an image file."); return; }
   ensureCollection("floorplan");
   resizeImageFile(file, 1600, (dataUrl) => {
-    state.floorplan.plans.push({ id: "fp" + Date.now(), name, imageDataUrl: dataUrl, pins: [] });
+    state.floorplan.plans.push({ id: "fp" + Date.now(), name, type: "image", imageDataUrl: dataUrl, pins: [] });
     renderFloorPlan();
     persistActiveProject();
     closeFloorPlanModal();
@@ -2017,7 +2027,7 @@ const CHAT_MOUNTS = [
   { log: "chatLog", form: "chatForm", input: "chatInput", send: "chatSend" },
   { log: "chatLogPage", form: "chatFormPage", input: "chatInputPage", send: "chatSendPage" },
 ];
-const VIEW_LABELS = { gantt: "Schedule", kanban: "Site Tasks", burndown: "Progress", raid: "RAID Log", dailylog: "Daily Log", submittals: "Submittals/RFI", punchlist: "Punch List", team: "Team", budget: "Budget", calendar: "Calendar", dashboard: "Dashboard", siteops: "Site Ops", charter: "Charter", crashing: "Crashing", wbs: "WBS", inventory: "Inventory" };
+const VIEW_LABELS = { gantt: "Schedule", kanban: "Site Tasks", burndown: "Progress", raid: "RAID Log", dailylog: "Daily Log", submittals: "Submittals/RFI", punchlist: "Punch List", team: "Team", budget: "Budget", calendar: "Calendar", dashboard: "Dashboard", siteops: "Site Ops", charter: "Charter", crashing: "Crashing", wbs: "WBS", inventory: "Inventory", floorplan: "Floor Plan" };
 
 function addMessage(role, text) { chatLogData.push({ kind: role, text }); CHAT_MOUNTS.forEach((m) => renderChatBubble(document.getElementById(m.log), role, text)); }
 function addNote(text, viewTab) { chatLogData.push({ kind: "note", text, viewTab }); CHAT_MOUNTS.forEach((m) => renderChatBubble(document.getElementById(m.log), "note", text, viewTab)); }
@@ -2074,6 +2084,13 @@ function applyOneAction(action) {
   else if (action.action === "crashing") { state.crashing = action.data; renderCrashing(); const total = (action.data.items || []).length; addNote(`✓ Crashing analysis updated (${total} tasks)`, "crashing"); }
   else if (action.action === "wbs") { state.wbs = action.data; renderWbs(); const total = (action.data.phases || []).length; addNote(`✓ WBS updated (${total} phases)`, "wbs"); }
   else if (action.action === "inventory") { state.inventory = action.data; renderInventory(); const total = (action.data.items || []).length; addNote(`✓ Inventory updated (${total} items)`, "inventory"); }
+  else if (action.action === "floorplan") {
+    ensureCollection("floorplan");
+    const rooms = (action.data.rooms || []).map((r, i) => ({ id: "room" + Date.now() + i, name: r.name, x: r.x, y: r.y, width: r.width, height: r.height }));
+    state.floorplan.plans.push({ id: "fp" + Date.now(), name: action.data.name || "AI Floor Plan", type: "schematic", rooms, pins: [] });
+    renderFloorPlan();
+    addNote(`✓ Schematic floor plan drafted (${rooms.length} rooms) — a labeled room-layout diagram, not a photorealistic image`, "floorplan");
+  }
 }
 function handleAssistantReply(reply) {
   const actions = extractJsonActions(reply);

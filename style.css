@@ -1039,6 +1039,32 @@ a { color: var(--accent); text-decoration: none; }
 .floorplan-pin:hover { background: var(--danger); }
 .floorplan-pin-list { margin-top: 10px; font-size: 12px; color: var(--text-dim); }
 .floorplan-pin-list span { font-family: var(--font-mono); font-size: 10px; color: var(--text-faint); margin-right: 6px; }
+.floorplan-schematic {
+  position: relative;
+  width: 100%;
+  padding-bottom: 62%;
+  background: var(--bg-panel-2);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+  cursor: crosshair;
+}
+.floorplan-room {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1.5px solid var(--accent);
+  background: var(--accent-dim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text);
+  padding: 3px;
+  overflow: hidden;
+  line-height: 1.2;
+}
 
 /* ---------- New Project / Add Item modal ---------- */
 .modal-overlay {
