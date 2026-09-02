@@ -607,6 +607,8 @@ a { color: var(--accent); text-decoration: none; }
 .view-sub em { color: var(--accent-2); font-style: normal; }
 .view-actions { display: flex; gap: 8px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
 .view-actions .btn-ghost { font-size: 11px; padding: 6px 12px; white-space: nowrap; }
+.view-actions .btn-primary { font-size: 11px; padding: 6px 14px; white-space: nowrap; }
+.view-actions .btn-primary:disabled { opacity: 0.55; cursor: default; }
 
 .empty-state {
   border: 1px dashed var(--border-strong);

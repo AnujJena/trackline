@@ -2,7 +2,7 @@
 
 A project console built specifically for construction project management. Everything below is fully unlocked — there's no paid tier or locked feature, since this is your own free, self-hosted build.
 
-**Access:** the app sits behind a simple login screen (username `admin`, password `admin`). This is a demo-only gate, not real security — the credentials are visible in the front-end source and there's no server-side check, so anyone with the URL can bypass it via browser dev tools. Use it only to keep casual visitors out, not to protect sensitive data.
+**Access:** the app sits behind a simple login screen (username `admin`, password `admin`). This is a demo-only gate, not real security — the credentials are visible in the front-end source and there's no server-side check, so anyone with the URL can bypass it via browser dev tools. Use it only to keep casual visitors out, not to protect sensitive data. After logging in, you land directly on the **Dashboard** of your most recent project — the marketing/landing page (with the feature cards, Portfolio link, and "Add New Project") is still there, reachable via the ⚙ Trackline logo in the top-left.
 
 **Core field modules** — each can be filled in manually (a "+ Add" button opens a form), by the AI assistant, or imported from a spreadsheet (every tab has "⬇ Template" / "⬆ Upload" buttons):
 - **Project Schedule** — Gantt-style task timeline; scrolls horizontally on long schedules
@@ -28,7 +28,9 @@ A project console built specifically for construction project management. Everyt
 - **Inventory** — stock on hand with reorder levels; low-stock items are flagged automatically
 - **Floor Plan** — upload one or more floor plan images (per level/unit); click anywhere on the image to drop a labeled pin (e.g. a punch item or RFI location), click a pin to remove it. This one is manual-only — there's no AI drafting or spreadsheet import for it, since it's image-based rather than structured data.
 
-Every row/card has a small "×" to delete it, and every tab has a "⟳ Refresh" button that reloads the tab from saved data. **The AI assistant can update several tabs from a single request** — e.g. "set up this whole project" can populate the schedule, budget, and team roster together in one reply. It's reachable both as an embedded copilot inside the workspace and as a dedicated full-page chat with a "previous chats" sidebar.
+Every row/card has a small "×" to delete it, and every tab has a "⟳ Refresh" button that reloads the tab from saved data. **The Dashboard has a "🚀 Set Up Entire Project" button** that populates every AI-draftable module (schedule, site tasks, burndown, RAID, daily log, submittals, punch list, team, budget, materials, attendance, machinery, charter, crashing, WBS, inventory) in one click — it runs as 7 small sequential requests rather than one giant reply, both because a single request covering everything risks tripping Vercel's free-tier 10-second serverless timeout, and because it's more reliable than hoping one AI reply remembers all 17 modules. You can also ask the assistant in chat to update several specific tabs at once (e.g. "update the schedule and budget together") — it can include multiple JSON blocks in a single reply for smaller requests like that.
+
+Everything is also reachable both as an embedded copilot inside the workspace and as a dedicated full-page chat with a "previous chats" sidebar.
 
 Every project has a **type** (Residential / Commercial / Infrastructure) picked when you create it, which the assistant uses to tailor its advice.
 

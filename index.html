@@ -260,12 +260,14 @@
       <div class="view-head">
         <div><h1>Project Dashboard</h1><p class="view-sub">A live snapshot of this project — schedule, budget, open items, crew workload, materials, attendance, and machinery.</p></div>
         <div class="view-actions">
+          <button class="btn-primary" id="btnSetupEntireProject">🚀 Set Up Entire Project</button>
           <button class="btn-ghost" id="dashAutoRefresh" data-on="0">⟳ Auto-refresh: Off</button>
           <button class="btn-ghost" data-refresh="dashboard">⟳ Refresh</button>
           <button class="btn-ghost" data-export-png="dashboardWrap" data-export-name="project-dashboard">Export PNG</button>
           <button class="btn-ghost" data-export-print>Export PDF</button>
         </div>
       </div>
+      <p class="dash-empty-note" id="setupProgressNote" style="display:none; margin-bottom:14px;"></p>
       <div class="dashboard-wrap" id="dashboardWrap"></div>
       <div class="dashboard-section-title" style="margin-top:22px;">Site Ops Live View</div>
       <div class="siteops-live-wrap" id="siteopsLiveWrap"></div>

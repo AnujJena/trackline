@@ -28,7 +28,8 @@ function todayISO() { return new Date().toISOString().slice(0, 10); }
 // ===== Login gate (demo-only — not real security; see login-note in the UI) =====
 function checkAuthAndBoot() {
   if (sessionStorage.getItem(AUTH_KEY) === "1") {
-    showPage("landingView");
+    showApp();
+    switchView("dashboard");
   } else {
     showPage("loginView");
   }
@@ -42,7 +43,8 @@ function attemptLogin() {
   if (user === DEMO_USER && pass === DEMO_PASS) {
     sessionStorage.setItem(AUTH_KEY, "1");
     err.style.display = "none";
-    showPage("landingView");
+    showApp();
+    switchView("dashboard");
   } else {
     err.style.display = "block";
   }
@@ -2124,10 +2126,40 @@ CHAT_MOUNTS.forEach((m) => {
   input.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); form.requestSubmit(); } });
 });
 
+// ===== Set Up Entire Project (runs in safe batches — one huge reply risks the 10s serverless timeout) =====
+const SETUP_BATCHES = [
+  { label: "Schedule & Site Tasks", prompt: "Set up the project schedule and the site task board for this project, based on its name and type. Keep the schedule to 6-8 realistic tasks and the task board to a handful of cards across To Do / In Progress / Done." },
+  { label: "Progress & RAID Log", prompt: "Add a schedule burndown for this project and populate the RAID log with 3-4 realistic risks, assumptions, issues, and dependencies relevant to this type of project." },
+  { label: "Daily Log, Submittals & Punch List", prompt: "Add one daily log entry for today, 2-3 submittals or RFIs, and 3-4 punch list items — all consistent with this project." },
+  { label: "Team & Budget", prompt: "Set up a small team roster (3-4 people with construction roles) with a couple of timesheet entries, and a budget with 4-5 line items appropriate for this project type." },
+  { label: "Materials, Attendance & Machinery", prompt: "Set up materials usage (4-5 items with realistic units), a few attendance records for today for the team roster, and a machinery roster (3-4 pieces of equipment) for this project." },
+  { label: "Charter & Crashing Analysis", prompt: "Draft a project charter for this project, and a crashing analysis for the 2-3 most time-critical tasks in the schedule." },
+  { label: "WBS & Inventory", prompt: "Create a work breakdown structure (2-3 phases with work packages) and a starter inventory list (3-4 items) for this project." },
+];
+async function setupEntireProject() {
+  const btn = document.getElementById("btnSetupEntireProject");
+  const note = document.getElementById("setupProgressNote");
+  if (btn.disabled) return;
+  if (!confirm(`This will ask the assistant to populate every module in ${SETUP_BATCHES.length} steps (${SETUP_BATCHES.length} separate requests, so it costs proportionally more than one message). Continue?`)) return;
+  btn.disabled = true;
+  note.style.display = "block";
+  for (let i = 0; i < SETUP_BATCHES.length; i++) {
+    note.textContent = `Setting up: ${SETUP_BATCHES[i].label} (step ${i + 1} of ${SETUP_BATCHES.length})…`;
+    setTicker(`SETTING UP PROJECT · STEP ${i + 1} OF ${SETUP_BATCHES.length}`, true);
+    await sendChatMessage(SETUP_BATCHES[i].prompt);
+  }
+  note.style.display = "none";
+  btn.disabled = false;
+  setTicker("PROJECT SETUP COMPLETE · ALL TABS UPDATED", true);
+  renderDashboard();
+  renderSiteOpsLive();
+}
+document.getElementById("btnSetupEntireProject").addEventListener("click", setupEntireProject);
+
 // ===== Landing page misc =====
 document.getElementById("btnAddProject").addEventListener("click", () => { promptNewProject((name, type) => createProjectAndOpen(name, type, "dashboard", true)); });
-document.getElementById("btnViewProjects").addEventListener("click", () => showApp());
-document.getElementById("navDashboard").addEventListener("click", (e) => { e.preventDefault(); showApp(); });
+document.getElementById("btnViewProjects").addEventListener("click", () => { showApp(); switchView("dashboard"); });
+document.getElementById("navDashboard").addEventListener("click", (e) => { e.preventDefault(); showApp(); switchView("dashboard"); });
 document.getElementById("navHelp").addEventListener("click", (e) => { e.preventDefault(); document.getElementById("helpPanel").classList.toggle("open"); });
 document.getElementById("brandHome").addEventListener("click", () => { persistActiveProject(); showLanding(); });
 
