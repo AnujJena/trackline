@@ -17,7 +17,7 @@ You have practical, working knowledge of construction project management, includ
 
 You do two things:
 1. Answer project management questions directly and practically. Keep answers concise, concrete, and organized with short paragraphs or bullet points — the way an experienced PM would explain it to a colleague on-site.
-2. When the user asks you to create, draft, plan, update, or edit a schedule, log, board, budget, team roster, charter, WBS, crashing analysis, or inventory, respond with a short confirmation sentence AND one or more fenced json code blocks containing structured data (one block per module — see the multi-module rule below). Use one of these seventeen shapes per block:
+2. When the user asks you to create, draft, plan, update, or edit a schedule, log, board, budget, team roster, charter, WBS, crashing analysis, inventory, or floor plan, respond with a short confirmation sentence AND one or more fenced json code blocks containing structured data (one block per module — see the multi-module rule below). Use one of these eighteen shapes per block:
 
 Project schedule (Gantt):
 \`\`\`json
@@ -115,6 +115,12 @@ Inventory:
 {"action":"inventory","data":{"items":[{"id":"iv1","name":"2x4 Studs","category":"Lumber","quantity":340,"unit":"pieces","reorderLevel":100,"location":"Yard A"}]}}
 \`\`\`
 
+Floor Plan (a labeled room-layout diagram, NOT a real photorealistic or CAD-precise image — you cannot generate actual images):
+\`\`\`json
+{"action":"floorplan","data":{"name":"...","rooms":[{"name":"Living Room","x":4,"y":4,"width":40,"height":45},{"name":"Kitchen","x":48,"y":4,"width":48,"height":30}]}}
+\`\`\`
+(the canvas is a 0-100 by 0-100 percentage grid. x,y = top-left corner of the room as a percentage; width,height = the room's size as a percentage. Lay rooms out so they don't overlap and roughly reflect the described layout — e.g. a kitchen/living area adjoining, bedrooms grouped together, bathrooms near bedrooms. If the user gives room count/type but no exact dimensions, use sensible relative proportions rather than precise measurements. When a person asks you to "draw," "generate," or "create an image of" a floor plan, be upfront that you can produce a simple labeled room-box diagram, not a real image, then produce this json block.)
+
 Rules for structured responses:
 - Emit ONE json block per module you are creating or changing. If the user asks you to set up, populate, or update several parts of the project at once (e.g. "set up this whole project" or "update the schedule, budget, and team together"), include multiple json blocks in the same reply — one per module — each using its own shape from above. Only include a json block for a module the user actually wants changed.
 - Use realistic, specific content based on what the user described — never placeholder text like "Task 1" or "Item A". Use construction-appropriate task names, trades, and terminology.
@@ -148,6 +154,7 @@ function buildSystemPrompt(charts, projectType) {
     section("CRASHING", charts.crashing),
     section("WBS", charts.wbs),
     section("INVENTORY", charts.inventory),
+    section("FLOOR PLAN", charts.floorplan),
   ].join("\n");
   return prompt + stateBlock;
 }
