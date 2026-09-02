@@ -1084,6 +1084,30 @@ a { color: var(--accent); text-decoration: none; }
   opacity: 0.85;
 }
 .floorplan-room-handle:hover { opacity: 1; }
+.floorplan-room-delete {
+  position: absolute;
+  top: 2px; right: 2px;
+  width: 15px; height: 15px;
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  color: var(--text-faint);
+  border-radius: 3px;
+  font-size: 10px;
+  line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  padding: 0;
+}
+.floorplan-room-delete:hover { color: var(--danger); border-color: var(--danger); }
+.floorplan-schematic-empty {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-faint);
+  font-size: 12px;
+  text-align: center;
+  padding: 20px;
+  pointer-events: none;
+}
 
 /* ---------- New Project / Add Item modal ---------- */
 .modal-overlay {

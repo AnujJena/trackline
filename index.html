@@ -565,10 +565,39 @@
     <h2>Add Floor Plan</h2>
     <label for="fpName">Name / level</label>
     <input type="text" id="fpName" placeholder="e.g. Level 1 — Ground Floor">
-    <label for="fpFile">Image file</label>
-    <input type="file" id="fpFile" accept="image/*">
-    <p class="login-note" style="margin-top:12px;">Images are resized and stored in this browser's local storage — very large or many images may hit the browser's storage limit.</p>
+    <label>Type</label>
+    <div class="status-radio-group" style="margin-bottom:4px;">
+      <label class="status-radio-option checked"><input type="radio" name="fpType" value="image" checked> Upload an image</label>
+      <label class="status-radio-option"><input type="radio" name="fpType" value="schematic"> Build a blank schematic</label>
+    </div>
+    <div id="fpImageFields">
+      <label for="fpFile">Image file</label>
+      <input type="file" id="fpFile" accept="image/*">
+      <p class="login-note" style="margin-top:12px;">Images are resized and stored in this browser's local storage — very large or many images may hit the browser's storage limit.</p>
+    </div>
+    <div id="fpSchematicFields" style="display:none;">
+      <label for="fpWidthFt">Overall width (ft)</label>
+      <input type="number" id="fpWidthFt" min="5" value="40">
+      <label for="fpHeightFt">Overall height (ft)</label>
+      <input type="number" id="fpHeightFt" min="5" value="25">
+      <p class="login-note" style="margin-top:12px;">Starts empty — use "＋ Add Room" on the new plan to add rooms manually, or ask the assistant to fill it in.</p>
+    </div>
     <div class="modal-actions"><button class="btn-secondary" id="floorPlanCancel">Cancel</button><button class="btn-primary" id="floorPlanSubmit">Add</button></div>
+  </div>
+</div>
+
+<!-- ===================== ADD ROOM MODAL (manual room entry for schematic floor plans) ===================== -->
+<div class="modal-overlay" id="addRoomModalOverlay" style="display:none;">
+  <div class="modal-box">
+    <h2>Add Room</h2>
+    <label for="arName">Room name</label>
+    <input type="text" id="arName" placeholder="e.g. Primary Bedroom">
+    <label for="arWidthFt">Width (ft)</label>
+    <input type="number" id="arWidthFt" min="1" value="12">
+    <label for="arHeightFt">Height (ft)</label>
+    <input type="number" id="arHeightFt" min="1" value="12">
+    <p class="login-note" style="margin-top:12px;">New rooms are placed in the top-left corner — drag to position and drag the corner handle to resize afterward.</p>
+    <div class="modal-actions"><button class="btn-secondary" id="addRoomCancel">Cancel</button><button class="btn-primary" id="addRoomSubmit">Add</button></div>
   </div>
 </div>
 

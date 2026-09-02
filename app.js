@@ -486,8 +486,11 @@ document.getElementById("addItemSubmit").addEventListener("click", () => {
 document.addEventListener("click", (e) => {
   const btn = e.target.closest("[data-del]");
   if (!btn) return;
-  const [type, id] = btn.dataset.del.split(":");
+  const sep = btn.dataset.del.indexOf(":");
+  const type = btn.dataset.del.slice(0, sep);
+  const id = btn.dataset.del.slice(sep + 1);
   if (type === "floorplanpin" && !confirm("Remove this pin?")) return;
+  if (type === "floorplanroom" && !confirm("Delete this room?")) return;
   deleteItem(type, id);
 });
 function deleteItem(type, id) {
@@ -510,6 +513,12 @@ function deleteItem(type, id) {
   else if (type === "inventory") { state.inventory.items = state.inventory.items.filter((i) => i.id !== id); renderInventory(); }
   else if (type === "floorplan") { state.floorplan.plans = state.floorplan.plans.filter((p) => p.id !== id); renderFloorPlan(); }
   else if (type === "floorplanpin") { state.floorplan.plans.forEach((p) => { p.pins = p.pins.filter((pin) => pin.id !== id); }); renderFloorPlan(); }
+  else if (type === "floorplanroom") {
+    const [planId, roomId] = id.split("::");
+    const plan = state.floorplan.plans.find((p) => p.id === planId);
+    if (plan) plan.rooms = plan.rooms.filter((r) => r.id !== roomId);
+    renderFloorPlan();
+  }
   persistActiveProject();
   if (type !== "floorplanpin") triggerPropagationCheck(`Deleted an item from ${MODULE_LABEL_FOR_TYPE[type] || type}.`);
 }
@@ -1591,10 +1600,12 @@ function renderFloorPlan() {
             const rw = ((r.width / 100) * widthFt).toFixed(1);
             const rh = ((r.height / 100) * heightFt).toFixed(1);
             return `<div class="floorplan-room" data-room-id="${r.id}" style="left:${r.x}%; top:${r.y}%; width:${r.width}%; height:${r.height}%;">
-              <div class="floorplan-room-label">${escapeHtml(r.name)}<br><span class="floorplan-room-dim">${rw}' × ${rh}'</span></div>
+              <button class="floorplan-room-delete" data-del="floorplanroom:${p.id}::${r.id}" title="Delete room">×</button>
+              <div class="floorplan-room-label" title="Double-click to rename">${escapeHtml(r.name)}<br><span class="floorplan-room-dim">${rw}' × ${rh}'</span></div>
               <div class="floorplan-room-handle" title="Drag to resize"></div>
             </div>`;
           }).join("")}
+          ${(p.rooms || []).length === 0 ? `<div class="floorplan-schematic-empty">No rooms yet — click "＋ Add Room" above, or ask the assistant.</div>` : ""}
           ${pinsHtml}
         </div>`
       : `<div class="floorplan-image-holder" data-plan-id="${p.id}">
@@ -1605,12 +1616,19 @@ function renderFloorPlan() {
     <div class="floorplan-card">
       <div class="floorplan-card-head">
         <h2>${escapeHtml(p.name)}${isSchematic ? ` <span class="crash-recommend">AI schematic — ${widthFt}' × ${heightFt}' overall (${(widthFt * heightFt).toLocaleString("en-US")} sq ft) · not to scale</span>` : ""}</h2>
-        <button class="row-delete-btn" data-del="floorplan:${p.id}" title="Delete floor plan">×</button>
+        <div style="display:flex; gap:8px; align-items:center;">
+          ${isSchematic ? `<button class="btn-tiny" data-add-room="${p.id}">＋ Add Room</button>` : ""}
+          <button class="row-delete-btn" data-del="floorplan:${p.id}" title="Delete floor plan">×</button>
+        </div>
       </div>
       ${canvasHtml}
       <div class="floorplan-pin-list">${(p.pins || []).map((pin, i) => `<span>#${i + 1}</span>${escapeHtml(pin.label)}`).join("<br>") || "No pins yet — click on the plan to add one."}</div>
     </div>`;
   }).join("");
+
+  wrap.querySelectorAll("[data-add-room]").forEach((btn) => {
+    btn.addEventListener("click", () => openAddRoomModal(btn.dataset.addRoom));
+  });
 
   wrap.querySelectorAll(".floorplan-image-holder").forEach((holder) => {
     holder.addEventListener("click", (e) => {
@@ -1638,10 +1656,26 @@ function attachFloorPlanRoomEvents(plan) {
   if (!holder) return;
   holder.querySelectorAll(".floorplan-room").forEach((roomEl) => {
     const roomId = roomEl.dataset.roomId;
-    roomEl.addEventListener("click", (e) => e.stopPropagation()); // don't let a click/drag on a room also drop a pin
+    roomEl.addEventListener("click", (e) => {
+      if (e.target.closest(".floorplan-room-delete")) return; // let this bubble to the global delete handler
+      e.stopPropagation(); // otherwise don't let a click/drag on a room also drop a pin
+    });
+
+    roomEl.addEventListener("dblclick", (e) => {
+      if (e.target.closest(".floorplan-room-delete") || e.target.closest(".floorplan-room-handle")) return;
+      e.stopPropagation();
+      const room = plan.rooms.find((r) => r.id === roomId);
+      if (!room) return;
+      const newName = prompt("Rename room:", room.name);
+      if (!newName) return;
+      room.name = newName;
+      renderFloorPlan();
+      persistActiveProject();
+      triggerPropagationCheck(`Renamed a room to "${newName}" in floor plan "${plan.name}".`);
+    });
 
     roomEl.addEventListener("pointerdown", (e) => {
-      if (e.target.closest(".floorplan-room-handle")) return;
+      if (e.target.closest(".floorplan-room-handle") || e.target.closest(".floorplan-room-delete")) return;
       const holderRect = holder.getBoundingClientRect();
       const room = plan.rooms.find((r) => r.id === roomId);
       if (!room) return;
@@ -1734,25 +1768,76 @@ function resizeImageFile(file, maxWidth, callback) {
 function openFloorPlanModal() {
   document.getElementById("fpName").value = "";
   document.getElementById("fpFile").value = "";
+  document.getElementById("fpWidthFt").value = "40";
+  document.getElementById("fpHeightFt").value = "25";
+  document.querySelector('input[name="fpType"][value="image"]').checked = true;
+  document.getElementById("fpImageFields").style.display = "block";
+  document.getElementById("fpSchematicFields").style.display = "none";
   document.getElementById("floorPlanModalOverlay").style.display = "flex";
   document.getElementById("fpName").focus();
 }
 function closeFloorPlanModal() { document.getElementById("floorPlanModalOverlay").style.display = "none"; }
 document.getElementById("btnAddFloorPlan").addEventListener("click", openFloorPlanModal);
 document.getElementById("floorPlanCancel").addEventListener("click", closeFloorPlanModal);
+document.querySelectorAll('input[name="fpType"]').forEach((radio) => {
+  radio.addEventListener("change", () => {
+    const isImage = document.querySelector('input[name="fpType"]:checked').value === "image";
+    document.getElementById("fpImageFields").style.display = isImage ? "block" : "none";
+    document.getElementById("fpSchematicFields").style.display = isImage ? "none" : "block";
+    document.querySelectorAll('#floorPlanModalOverlay .status-radio-option').forEach((lbl) => lbl.classList.toggle("checked", lbl.querySelector("input").checked));
+  });
+});
 document.getElementById("floorPlanSubmit").addEventListener("click", () => {
   const name = document.getElementById("fpName").value.trim();
-  const fileInput = document.getElementById("fpFile");
-  const file = fileInput.files[0];
+  const kind = document.querySelector('input[name="fpType"]:checked').value;
   if (!name) { alert("Please name this floor plan (e.g. a level or unit)."); return; }
-  if (!file) { alert("Please choose an image file."); return; }
   ensureCollection("floorplan");
+  if (kind === "schematic") {
+    const widthFt = Number(document.getElementById("fpWidthFt").value) || 40;
+    const heightFt = Number(document.getElementById("fpHeightFt").value) || 25;
+    state.floorplan.plans.push({ id: "fp" + Date.now(), name, type: "schematic", widthFt, heightFt, rooms: [], pins: [] });
+    renderFloorPlan();
+    persistActiveProject();
+    closeFloorPlanModal();
+    return;
+  }
+  const file = document.getElementById("fpFile").files[0];
+  if (!file) { alert("Please choose an image file."); return; }
   resizeImageFile(file, 1600, (dataUrl) => {
     state.floorplan.plans.push({ id: "fp" + Date.now(), name, type: "image", imageDataUrl: dataUrl, pins: [] });
     renderFloorPlan();
     persistActiveProject();
     closeFloorPlanModal();
   });
+});
+
+// ===== Add Room modal (manual room entry for schematic floor plans) =====
+let addRoomToPlanId = null;
+function openAddRoomModal(planId) {
+  addRoomToPlanId = planId;
+  document.getElementById("arName").value = "";
+  document.getElementById("arWidthFt").value = "12";
+  document.getElementById("arHeightFt").value = "12";
+  document.getElementById("addRoomModalOverlay").style.display = "flex";
+  document.getElementById("arName").focus();
+}
+function closeAddRoomModal() { document.getElementById("addRoomModalOverlay").style.display = "none"; addRoomToPlanId = null; }
+document.getElementById("addRoomCancel").addEventListener("click", closeAddRoomModal);
+document.getElementById("addRoomSubmit").addEventListener("click", () => {
+  const name = document.getElementById("arName").value.trim();
+  if (!name) { alert("Please enter a room name."); return; }
+  const plan = (state.floorplan && state.floorplan.plans || []).find((p) => p.id === addRoomToPlanId);
+  if (!plan) { closeAddRoomModal(); return; }
+  const widthFt = Number(document.getElementById("arWidthFt").value) || 12;
+  const heightFt = Number(document.getElementById("arHeightFt").value) || 12;
+  const planWidthFt = plan.widthFt || 40, planHeightFt = plan.heightFt || 25;
+  const width = Math.max(4, Math.min(96, (widthFt / planWidthFt) * 100));
+  const height = Math.max(4, Math.min(96, (heightFt / planHeightFt) * 100));
+  plan.rooms.push({ id: "room" + Date.now(), name, x: 4, y: 4, width, height });
+  renderFloorPlan();
+  persistActiveProject();
+  closeAddRoomModal();
+  triggerPropagationCheck(`Manually added a room "${name}" (${widthFt}' × ${heightFt}') to floor plan "${plan.name}".`);
 });
 
 // ===== Dashboard rendering (computed, read-only) =====
@@ -2301,7 +2386,7 @@ const MODULE_LABEL_FOR_TYPE = {
   punchlist: "Punch List", burndown: "Progress", teammember: "Team", timesheet: "Team (timesheet)", budget: "Budget",
   material: "Site Ops (materials)", attendance: "Site Ops (attendance)", machine: "Site Ops (machinery)",
   crashing: "Crashing", wbsphase: "WBS", wbsitem: "WBS", inventory: "Inventory",
-  floorplan: "Floor Plan", floorplanpin: "Floor Plan (pin)",
+  floorplan: "Floor Plan", floorplanpin: "Floor Plan (pin)", floorplanroom: "Floor Plan (room)",
 };
 function summarizeActionShort(a) {
   const d = a.data || {};
