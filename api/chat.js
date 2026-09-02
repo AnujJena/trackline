@@ -117,9 +117,9 @@ Inventory:
 
 Floor Plan (a labeled room-layout diagram, NOT a real photorealistic or CAD-precise image — you cannot generate actual images):
 \`\`\`json
-{"action":"floorplan","data":{"name":"...","rooms":[{"name":"Living Room","x":4,"y":4,"width":40,"height":45},{"name":"Kitchen","x":48,"y":4,"width":48,"height":30}]}}
+{"action":"floorplan","data":{"name":"...","widthFt":40,"heightFt":25,"rooms":[{"name":"Living Room","x":4,"y":4,"width":40,"height":45},{"name":"Kitchen","x":48,"y":4,"width":48,"height":30}]}}
 \`\`\`
-(the canvas is a 0-100 by 0-100 percentage grid. x,y = top-left corner of the room as a percentage; width,height = the room's size as a percentage. Lay rooms out so they don't overlap and roughly reflect the described layout — e.g. a kitchen/living area adjoining, bedrooms grouped together, bathrooms near bedrooms. If the user gives room count/type but no exact dimensions, use sensible relative proportions rather than precise measurements. When a person asks you to "draw," "generate," or "create an image of" a floor plan, be upfront that you can produce a simple labeled room-box diagram, not a real image, then produce this json block.)
+(widthFt/heightFt describe the REAL-WORLD size of the whole plan in feet — pick sensible overall dimensions for the described building/unit (a typical single-family home might be 40-60 ft wide; a small apartment might be 25-35 ft). If the user doesn't specify, use reasonable real-world defaults for the described space rather than an arbitrary number. The canvas itself is a 0-100 by 0-100 percentage grid: x,y = top-left corner of the room as a percentage of that grid; width,height = the room's size as a percentage of that grid — the app converts these percentages into feet using widthFt/heightFt automatically to label each room. Lay rooms out so they don't overlap and roughly reflect the described layout — e.g. a kitchen/living area adjoining, bedrooms grouped together, bathrooms near bedrooms — and size each room proportionally to a realistic room of that type (e.g. a primary bedroom bigger than a closet) rather than making every room the same size. The user can also drag rooms directly on the page afterward to reposition or resize them without needing to ask you again. When a person asks you to "draw," "generate," or "create an image of" a floor plan, be upfront that you can produce a simple labeled room-box diagram, not a real image, then produce this json block.)
 
 Rules for structured responses:
 - Emit ONE json block per module you are creating or changing. If the user asks you to set up, populate, or update several parts of the project at once (e.g. "set up this whole project" or "update the schedule, budget, and team together"), include multiple json blocks in the same reply — one per module — each using its own shape from above. Only include a json block for a module the user actually wants changed.
@@ -159,6 +159,18 @@ function buildSystemPrompt(charts, projectType) {
   return prompt + stateBlock;
 }
 
+const PROPAGATION_ADDENDUM = `
+
+--- PROPAGATION CHECK MODE ---
+You are not being asked a question by the user right now. Instead, the user just made a manual edit directly in the app (not through chat), and the app is asking you to check whether that edit has clear, direct consequences elsewhere in the project that should be kept consistent.
+
+You will be told exactly what changed. Using the full current project state already provided above:
+- Only propose an update to another module if there is an obvious, direct, logical connection to the specific edit described — for example: a schedule task's dates shifting past a submittal's due date; a task being deleted that a crashing-analysis entry or WBS work package was named after; a budget line item's cost changing in a way that affects the total shown elsewhere. Do not update the totals/dashboard yourself — those are computed automatically by the app.
+- Do NOT invent busywork changes, do NOT "helpfully" touch modules with no real connection to what changed, and do NOT re-propose the same change that was just made.
+- If nothing needs to change, say so in one short sentence and include NO json blocks at all — this will be the common case for most edits, and that's expected and correct.
+- If something should change, write one brief sentence per proposed change explaining why, then the json block(s) for those changes only, using the same shapes as above. These will be shown to the user as suggestions to approve, not applied automatically — so it's safe to propose them even if you're not fully certain, as long as the connection is real.
+- Keep your prose extremely brief — a sentence or two total, since this is a background check, not a conversation.`;
+
 module.exports = async (req, res) => {
   if (req.method === "GET") { res.status(200).json({ configured: Boolean(process.env.ANTHROPIC_API_KEY) }); return; }
   if (req.method !== "POST") { res.status(405).json({ error: "Method not allowed" }); return; }
@@ -167,16 +179,19 @@ module.exports = async (req, res) => {
   if (!apiKey) { res.status(500).json({ error: "ANTHROPIC_API_KEY is not configured on the server." }); return; }
 
   try {
-    const { messages, charts, projectType } = req.body || {};
+    const { messages, charts, projectType, mode } = req.body || {};
     if (!Array.isArray(messages) || messages.length === 0) { res.status(400).json({ error: "messages array is required" }); return; }
+
+    let system = buildSystemPrompt(charts, projectType);
+    if (mode === "propagation") system += PROPAGATION_ADDENDUM;
 
     const apiRes = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: 2200,
-        system: buildSystemPrompt(charts, projectType),
+        max_tokens: mode === "propagation" ? 1200 : 2200,
+        system,
         messages: messages.map((m) => ({ role: m.role, content: m.content })),
       }),
     });
